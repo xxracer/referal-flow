@@ -1,6 +1,6 @@
 'use client';
 
-import { useFormState, useFormStatus } from 'react-dom';
+import { useActionState, useFormStatus } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -34,7 +34,7 @@ function SubmitButton() {
 
 export default function ReferPage() {
   const initialState: FormState = { message: '', success: false };
-  const [formState, dispatch] = useFormState(submitReferral, initialState);
+  const [formState, dispatch] = useActionState(submitReferral, initialState);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   const form = useForm<FormData>({

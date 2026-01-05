@@ -37,7 +37,7 @@ import StatusBadge from '@/components/referrals/status-badge';
 import { formatDate } from '@/lib/utils';
 import type { Referral, ReferralStatus } from '@/lib/types';
 import { addInternalNote, updateReferralStatus } from '@/lib/actions';
-import { useFormState, useFormStatus } from 'react-dom';
+import { useActionState, useFormStatus } from 'react';
 import { useEffect, useState, useOptimistic, startTransition } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
@@ -84,7 +84,7 @@ export default function ReferralDetailPage({ params }: { params: { id: string } 
   );
 
   const { toast } = useToast();
-  const [noteState, noteFormAction] = useFormState(addInternalNote.bind(null, params.id), { message: '', success: false });
+  const [noteState, noteFormAction] = useActionState(addInternalNote.bind(null, params.id), { message: '', success: false });
 
   if (!optimisticReferral) {
     return (

@@ -1,6 +1,6 @@
 'use client';
 
-import { useFormState, useFormStatus } from 'react-dom';
+import { useActionState, useFormStatus } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -34,7 +34,7 @@ export default function StatusPage() {
   const [patientDOB, setPatientDOB] = useState<Date | undefined>();
 
   const initialState: FormState = { message: '', success: false };
-  const [formState, dispatch] = useFormState(checkStatus, initialState);
+  const [formState, dispatch] = useActionState(checkStatus, initialState);
 
   return (
     <div className="flex flex-col min-h-dvh">
