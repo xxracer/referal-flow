@@ -37,10 +37,14 @@ import StatusBadge from '@/components/referrals/status-badge';
 import { formatDate } from '@/lib/utils';
 import type { Referral, ReferralStatus } from '@/lib/types';
 import { addInternalNote, updateReferralStatus } from '@/lib/actions';
-import { useActionState, useFormStatus } from 'react';
+import { useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
 import { useEffect, useState, useOptimistic, startTransition } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+
 
 function SubmitButton({ text, icon: Icon }: { text: string, icon?: React.ElementType }) {
     const { pending } = useFormStatus();
@@ -84,7 +88,7 @@ export default function ReferralDetailPage({ params }: { params: { id: string } 
   );
 
   const { toast } = useToast();
-  const [noteState, noteFormAction] = useActionState(addInternalNote.bind(null, params.id), { message: '', success: false });
+  const [noteState, noteFormAction, isNotePending] = useActionState(addInternalNote.bind(null, params.id), { message: '', success: false });
 
   if (!optimisticReferral) {
     return (
@@ -172,13 +176,20 @@ export default function ReferralDetailPage({ params }: { params: { id: string } 
                   <p className="text-sm text-muted-foreground text-center py-4">No internal notes yet.</p>
                 )}
                 <Separator />
-                <form action={async formData => {
+                <form action={async (formData) => {
                     const note = formData.get('note') as string;
+                    if (!note) return;
                     startTransition(() => setOptimisticReferral({ note }));
-                    await noteFormAction(formData);
+                    const form = formData.entries.length > 0 ? formData : new FormData();
+                    if (!form.has('note')) form.append('note', note);
+                    await noteFormAction(form);
+                    (document.getElementById('note-textarea') as HTMLTextAreaElement).value = '';
                 }} className="space-y-2">
-                  <Textarea name="note" placeholder="Add a new note..." required />
-                  <SubmitButton text="Add Note" />
+                  <Textarea name="note" id="note-textarea" placeholder="Add a new note..." required />
+                  <Button type="submit" disabled={isNotePending} size="sm">
+                    {isNotePending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquare className="mr-2 h-4 w-4" />}
+                    Add Note
+                  </Button>
                 </form>
               </div>
             </CardContent>
