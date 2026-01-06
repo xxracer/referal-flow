@@ -27,13 +27,34 @@ export type AISummary = {
 
 export type Referral = {
   id: string;
+  // Referrer Info
+  referrerName: string;
+  providerNpi: string;
+  referrerContact: string;
+  referrerFax: string;
+  contactPerson: string;
+  confirmationEmail: string;
+
+  // Patient Info
   patientName: string;
   patientDOB: string; 
   patientContact: string;
+  patientInsurance: string;
+  memberId: string;
+  authorizationNumber?: string;
+  
+  // Exam Info
+  examRequested: string;
+  examOther?: string;
+  diagnosis: string;
+  priority?: string;
+  contrast?: string;
+  reasonForExam?: string;
+  
+  // Old fields that need to be handled
   patientId?: string;
-  referrerName: string;
-  referrerContact: string;
-  referrerRelation: string;
+  referrerRelation?: string;
+
   documents: Document[];
   status: ReferralStatus;
   statusHistory: StatusHistory[];

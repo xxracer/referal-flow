@@ -17,18 +17,46 @@ export type FormState = {
 };
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const ACCEPTED_FILE_TYPES = ['image/jpeg', 'image/png', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+const ACCEPTED_FILE_TYPES = ['image/jpeg', 'image/png', 'application/pdf', 'image/gif'];
 
 
 export async function submitReferral(prevState: FormState, formData: FormData): Promise<FormState> {
+  const priorityCheckboxes = ['STAT', 'URGENT'].filter(p => formData.get(p) === 'on');
+  let priority;
+  if (priorityCheckboxes.length > 1) {
+    priority = 'STAT'; // Or however you want to handle multiple selections
+  } else if (priorityCheckboxes.length === 1) {
+    priority = priorityCheckboxes[0];
+  } else {
+    priority = 'ROUTINE';
+  }
+
+  const contrastCheckboxes = ['With Contrast', 'Without Contrast', 'With and Without Contrast'].filter(c => formData.get(c) === 'on');
+  let contrast;
+  if (contrastCheckboxes.length > 0) {
+    contrast = contrastCheckboxes[0]; // Taking the first one if multiple are selected
+  }
+  
   const validatedFields = referralSchema.safeParse({
-    patientName: formData.get('patientName'),
-    patientDOB: formData.get('patientDOB'),
-    patientContact: formData.get('patientContact'),
-    patientId: formData.get('patientId'),
     referrerName: formData.get('referrerName'),
+    providerNpi: formData.get('providerNpi'),
     referrerContact: formData.get('referrerContact'),
-    referrerRelation: formData.get('referrerRelation'),
+    referrerFax: formData.get('referrerFax'),
+    contactPerson: formData.get('contactPerson'),
+    confirmationEmail: formData.get('confirmationEmail'),
+    patientFirstName: formData.get('patientFirstName'),
+    patientLastName: formData.get('patientLastName'),
+    patientContact: formData.get('patientContact'),
+    patientDOB: formData.get('patientDOB'),
+    patientInsurance: formData.get('patientInsurance'),
+    memberId: formData.get('memberId'),
+    authorizationNumber: formData.get('authorizationNumber'),
+    examRequested: formData.get('examRequested'),
+    examOther: formData.get('examOther'),
+    diagnosis: formData.get('diagnosis'),
+    reasonForExam: formData.get('reasonForExam'),
+    priority: priority,
+    contrast: contrast,
   });
 
   if (!validatedFields.success) {
@@ -56,6 +84,7 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
 
   const referralId = `TX-REF-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
   const now = new Date();
+  const patientName = `${validatedFields.data.patientFirstName} ${validatedFields.data.patientLastName}`;
 
   // Handle AI Categorization
   let aiSummary: AISummary | undefined = undefined;
@@ -71,7 +100,7 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
     try {
         aiSummary = await categorizeReferral({
             documents: documentsData,
-            patientName: validatedFields.data.patientName,
+            patientName: patientName,
             referrerName: validatedFields.data.referrerName,
         });
     } catch (e) {
@@ -83,7 +112,9 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
   const newReferral: Referral = {
     id: referralId,
     ...validatedFields.data,
+    patientName: patientName,
     patientDOB: validatedFields.data.patientDOB,
+    examRequested: validatedFields.data.examRequested,
     status: 'RECEIVED',
     createdAt: now,
     updatedAt: now,

@@ -31,7 +31,11 @@ import {
   Loader2,
   Tag,
   Clock,
-  ArrowLeft
+  ArrowLeft,
+  Stethoscope,
+  Building,
+  ClipboardList,
+  Info
 } from 'lucide-react';
 import StatusBadge from '@/components/referrals/status-badge';
 import { formatDate } from '@/lib/utils';
@@ -122,24 +126,49 @@ export default function ReferralDetailPage({ params }: { params: { id: string } 
 
       <div className="grid md:grid-cols-3 gap-6">
         <div className="md:col-span-2 space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2"><User className="text-primary" /> Patient & Referrer</CardTitle></CardHeader>
+           <Card>
+            <CardHeader><CardTitle className="flex items-center gap-2"><User className="text-primary" /> Patient Info</CardTitle></CardHeader>
             <CardContent className="grid sm:grid-cols-2 gap-4 text-sm">
-              <div>
-                <h4 className="font-semibold mb-2">Patient Info</h4>
                 <p><strong>Name:</strong> {optimisticReferral.patientName}</p>
                 <p><strong>DOB:</strong> {formatDate(optimisticReferral.patientDOB)}</p>
                 <p><strong>Contact:</strong> {optimisticReferral.patientContact}</p>
-                {optimisticReferral.patientId && <p><strong>Patient ID:</strong> {optimisticReferral.patientId}</p>}
-              </div>
-              <div>
-                <h4 className="font-semibold mb-2">Referrer Info</h4>
-                <p><strong>Name/Org:</strong> {optimisticReferral.referrerName}</p>
-                <p><strong>Contact:</strong> {optimisticReferral.referrerContact}</p>
-                <p><strong>Relation:</strong> {optimisticReferral.referrerRelation}</p>
-              </div>
+                <p><strong>Insurance:</strong> {optimisticReferral.patientInsurance}</p>
+                <p><strong>Member ID:</strong> {optimisticReferral.memberId}</p>
+                {optimisticReferral.authorizationNumber && <p><strong>Auth #:</strong> {optimisticReferral.authorizationNumber}</p>}
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader><CardTitle className="flex items-center gap-2"><Building className="text-primary" /> Referrer Info</CardTitle></CardHeader>
+            <CardContent className="grid sm:grid-cols-2 gap-4 text-sm">
+                <p><strong>Provider/Office:</strong> {optimisticReferral.referrerName}</p>
+                <p><strong>NPI#:</strong> {optimisticReferral.providerNpi}</p>
+                <p><strong>Phone:</strong> {optimisticReferral.referrerContact}</p>
+                <p><strong>Fax:</strong> {optimisticReferral.referrerFax}</p>
+                <p><strong>Contact Person:</strong> {optimisticReferral.contactPerson}</p>
+                <p><strong>Confirmation Email:</strong> {optimisticReferral.confirmationEmail}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle className="flex items-center gap-2"><ClipboardList className="text-primary" /> Exam Info</CardTitle></CardHeader>
+            <CardContent className="grid sm:grid-cols-2 gap-4 text-sm">
+                <p><strong>Exam:</strong> {optimisticReferral.examRequested}{optimisticReferral.examRequested === 'Other' && ` (${optimisticReferral.examOther})`}</p>
+                <p><strong>Priority:</strong> <Badge variant={optimisticReferral.priority === 'STAT' || optimisticReferral.priority === 'URGENT' ? 'destructive' : 'secondary'}>{optimisticReferral.priority}</Badge></p>
+                {optimisticReferral.contrast && <p><strong>Contrast:</strong> {optimisticReferral.contrast}</p>}
+                <div className="sm:col-span-2">
+                    <p><strong>Diagnosis/Symptoms:</strong></p>
+                    <p className="text-muted-foreground p-2 bg-muted rounded-md mt-1">{optimisticReferral.diagnosis}</p>
+                </div>
+                 {optimisticReferral.reasonForExam && (
+                    <div className="sm:col-span-2">
+                        <p><strong>Reason for Exam:</strong></p>
+                        <p className="text-muted-foreground p-2 bg-muted rounded-md mt-1">{optimisticReferral.reasonForExam}</p>
+                    </div>
+                 )}
+            </CardContent>
+          </Card>
+
 
           {optimisticReferral.aiSummary && (
              <Card>

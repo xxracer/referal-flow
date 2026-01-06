@@ -53,6 +53,7 @@ export default async function DashboardPage() {
               <TableRow>
                 <TableHead>Referral ID</TableHead>
                 <TableHead>Patient</TableHead>
+                <TableHead>Exam</TableHead>
                 <TableHead>Referrer</TableHead>
                 <TableHead>Received</TableHead>
                 <TableHead className="text-center">Docs</TableHead>
@@ -69,6 +70,7 @@ export default async function DashboardPage() {
                       </Link>
                     </TableCell>
                     <TableCell>{referral.patientName}</TableCell>
+                    <TableCell>{referral.examRequested}</TableCell>
                     <TableCell>{referral.referrerName}</TableCell>
                     <TableCell>{formatDate(referral.createdAt)}</TableCell>
                     <TableCell className="text-center">
@@ -88,7 +90,7 @@ export default async function DashboardPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center h-24">
+                  <TableCell colSpan={7} className="text-center h-24">
                     No referrals found.
                   </TableCell>
                 </TableRow>
