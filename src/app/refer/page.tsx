@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useActionState } from 'react-dom';
+import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Calendar as CalendarIcon, FileUp, Loader2, AlertCircle, Phone, Mail, Fax } from 'lucide-react';
+import { Calendar as CalendarIcon, FileUp, Loader2, AlertCircle, Phone, Mail, Printer } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import SiteHeader from '@/components/layout/site-header';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -73,7 +73,7 @@ export default function ReferPage() {
                     <strong>Email:</strong> Office@Centraloftexas.com
                 </div>
                 <div className="flex items-center gap-2">
-                    <Fax className="w-4 h-4 text-primary" />
+                    <Printer className="w-4 h-4 text-primary" />
                     <strong>Fax:</strong> 713-378-5289
                 </div>
             </div>
