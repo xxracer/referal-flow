@@ -38,6 +38,15 @@ export default function StatusPage() {
   const initialState: FormState = { message: '', success: false };
   const [formState, dispatch] = useActionState(checkStatus, initialState);
 
+  useEffect(() => {
+    // If there is an initial referralId from the URL params, we don't want to reset the form.
+    // We only reset if the form was successful and there was no initial ID.
+    if (formState.success && !initialReferralId) {
+      setReferralId('');
+      setPatientDOB(undefined);
+    }
+  }, [formState, initialReferralId]);
+
   return (
     <div className="flex flex-col min-h-dvh">
       <SiteHeader />
