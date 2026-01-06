@@ -13,7 +13,7 @@ import { Loader2, AlertCircle, Search, Clock, Info, CheckCircle } from 'lucide-r
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { CalendarIcon } from 'lucide-react';
-
+import { Textarea } from '@/components/ui/textarea';
 import SiteHeader from '@/components/layout/site-header';
 import { checkStatus, type FormState } from '@/lib/actions';
 import { cn, formatDate } from '@/lib/utils';
@@ -32,6 +32,7 @@ function SubmitButton() {
 export default function StatusPage() {
   const searchParams = useSearchParams();
   const initialReferralId = searchParams.get('id') || '';
+  const [referralId, setReferralId] = useState(initialReferralId);
   const [patientDOB, setPatientDOB] = useState<Date | undefined>();
 
   const initialState: FormState = { message: '', success: false };
@@ -51,7 +52,14 @@ export default function StatusPage() {
               <form action={dispatch} className="space-y-6">
                 <div className="space-y-2">
                   <Label htmlFor="referralId">Referral ID</Label>
-                  <Input id="referralId" name="referralId" defaultValue={initialReferralId} placeholder="e.g., TX-REF-2024-001234" required />
+                  <Input 
+                    id="referralId" 
+                    name="referralId" 
+                    value={referralId}
+                    onChange={(e) => setReferralId(e.target.value)}
+                    placeholder="e.g., TX-REF-2024-001234" 
+                    required 
+                  />
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="patientDOB">Patient's Date of Birth</Label>
@@ -74,11 +82,19 @@ export default function StatusPage() {
                             selected={patientDOB}
                             onSelect={setPatientDOB}
                             initialFocus
+                            captionLayout="dropdown-buttons" 
+                            fromYear={1900} toYear={new Date().getFullYear()}
                             />
                         </PopoverContent>
                     </Popover>
                     <Input type="hidden" id="patientDOB" name="patientDOB" value={patientDOB ? formatDate(patientDOB, 'yyyy-MM-dd') : ''} />
                 </div>
+                {referralId && (
+                    <div className="space-y-2">
+                        <Label htmlFor="optionalNote">Optional Note</Label>
+                        <Textarea id="optionalNote" name="optionalNote" placeholder="Add a note to your referral..." />
+                    </div>
+                )}
                 <SubmitButton />
               </form>
             </CardContent>
@@ -96,9 +112,18 @@ export default function StatusPage() {
                     <Card className="shadow-md">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 font-headline"><Info className="w-5 h-5" /> Referral Status</CardTitle>
+                            {formState.data?.noteAdded && (
+                                <Alert variant="default" className="bg-green-50 border-green-200">
+                                    <CheckCircle className="h-4 w-4 text-green-600" />
+                                    <AlertTitle className="text-green-800">Note Added</AlertTitle>
+                                    <AlertDescription className="text-green-700">
+                                        Your note has been successfully added to the referral.
+                                    </AlertDescription>
+                                </Alert>
+                            )}
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="flex justify-between items-center">
+                             <div className="flex justify-between items-center">
                                 <span className="text-muted-foreground">Current Status:</span>
                                 {formState.data?.status && <StatusBadge status={formState.data.status} />}
                             </div>

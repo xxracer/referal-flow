@@ -144,6 +144,7 @@ export async function checkStatus(prevState: FormState, formData: FormData): Pro
     const validatedFields = statusCheckSchema.safeParse({
         referralId: formData.get('referralId'),
         patientDOB: formData.get('patientDOB'),
+        optionalNote: formData.get('optionalNote'),
     });
 
     if (!validatedFields.success) {
@@ -154,11 +155,26 @@ export async function checkStatus(prevState: FormState, formData: FormData): Pro
         };
     }
 
-    const { referralId, patientDOB } = validatedFields.data;
+    const { referralId, patientDOB, optionalNote } = validatedFields.data;
     const referral = await db.findReferral(referralId, patientDOB);
 
     if (!referral) {
         return { message: 'No matching referral found. Please check the ID and date of birth.', success: false };
+    }
+
+    let noteAdded = false;
+    if (optionalNote) {
+        const now = new Date();
+        referral.internalNotes.push({
+            id: `note-${Date.now()}`,
+            content: optionalNote,
+            author: 'Referrer/Patient',
+            createdAt: now,
+        });
+        referral.updatedAt = now;
+        await db.saveReferral(referral);
+        noteAdded = true;
+        revalidatePath(`/dashboard/referrals/${referralId}`);
     }
 
     return {
@@ -167,6 +183,7 @@ export async function checkStatus(prevState: FormState, formData: FormData): Pro
         data: {
             status: referral.status,
             updatedAt: referral.updatedAt.toISOString(),
+            noteAdded: noteAdded,
         }
     };
 }

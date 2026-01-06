@@ -40,6 +40,7 @@ export const referralSchema = z.object({
 export const statusCheckSchema = z.object({
     referralId: z.string().min(1, { message: "Referral ID is required." }),
     patientDOB: z.string().min(1, { message: "Patient's Date of Birth is required." }),
+    optionalNote: z.string().optional(),
 });
 
 export const noteSchema = z.object({
