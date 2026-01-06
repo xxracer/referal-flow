@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { referralSchema, statusCheckSchema, noteSchema } from './schemas';
 import { db } from './data';
-import type { Referral, ReferralStatus, AISummary } from './types';
+import type { Referral, ReferralStatus, AISummary, Document } from './types';
 import { categorizeReferral } from '@/ai/flows/smart-categorization';
 
 // Type for state management with useFormState
@@ -17,7 +17,29 @@ export type FormState = {
 };
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const ACCEPTED_FILE_TYPES = ['image/jpeg', 'image/png', 'application/pdf', 'image/gif'];
+const ACCEPTED_FILE_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
+
+const processFiles = async (files: File[]): Promise<{validDocs: Document[], dataURIs: string[], errorState: FormState | null}> => {
+    const validDocs: Document[] = [];
+    const dataURIs: string[] = [];
+
+    for (const doc of files) {
+        if (doc.size > 0) {
+            if (doc.size > MAX_FILE_SIZE) {
+                return { validDocs: [], dataURIs: [], errorState: { message: `File "${doc.name}" exceeds the 5MB size limit.`, success: false }};
+            }
+            if (!ACCEPTED_FILE_TYPES.includes(doc.type)) {
+                return { validDocs: [], dataURIs: [], errorState: { message: `File type for "${doc.name}" is not supported.`, success: false }};
+            }
+            const bytes = await doc.arrayBuffer();
+            const buffer = Buffer.from(bytes);
+            const dataURI = `data:${doc.type};base64,${buffer.toString('base64')}`;
+            dataURIs.push(dataURI);
+            validDocs.push({ id: `doc-${Date.now()}-${Math.random()}`, name: doc.name, url: '#', size: doc.size });
+        }
+    }
+    return { validDocs, dataURIs, errorState: null };
+};
 
 
 export async function submitReferral(prevState: FormState, formData: FormData): Promise<FormState> {
@@ -29,6 +51,8 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
     patientFullName: formData.get('patientFullName'),
     patientDOB: formData.get('patientDOB'),
     patientZipCode: formData.get('patientZipCode'),
+    primaryInsurance: formData.get('primaryInsurance'),
+    servicesNeeded: formData.getAll('servicesNeeded'),
   });
 
   if (!validatedFields.success) {
@@ -39,40 +63,29 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
     };
   }
   
-  const documents = formData.getAll('documents') as File[];
-  const validDocuments = [];
+  const referralDocs = formData.getAll('referralDocuments') as File[];
+  const progressNotes = formData.getAll('progressNotes') as File[];
 
-  for (const doc of documents) {
-      if (doc.size > 0) {
-        if (doc.size > MAX_FILE_SIZE) {
-            return { message: `File "${doc.name}" exceeds the 5MB size limit.`, success: false };
-        }
-        if (!ACCEPTED_FILE_TYPES.includes(doc.type)) {
-            return { message: `File type for "${doc.name}" is not supported.`, success: false };
-        }
-        validDocuments.push(doc);
-      }
-  }
+  const { validDocs: validReferralDocs, dataURIs: referralDataURIs, errorState: referralError } = await processFiles(referralDocs);
+  if (referralError) return referralError;
+
+  const { validDocs: validProgressNotes, dataURIs: progressNotesDataURIs, errorState: progressNotesError } = await processFiles(progressNotes);
+  if (progressNotesError) return progressNotesError;
+
+  const allValidDocuments = [...validReferralDocs, ...validProgressNotes];
+  const allDataURIs = [...referralDataURIs, ...progressNotesDataURIs];
 
   const referralId = `TX-REF-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
   const now = new Date();
   
-  const { organizationName, contactName, phone, email, patientFullName, patientDOB, patientZipCode } = validatedFields.data;
+  const { organizationName, contactName, phone, email, patientFullName, patientDOB, patientZipCode, primaryInsurance, servicesNeeded } = validatedFields.data;
 
   // Handle AI Categorization
   let aiSummary: AISummary | undefined = undefined;
-  if (validDocuments.length > 0) {
-    const documentsData: string[] = [];
-    for (const file of validDocuments) {
-        const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
-        const dataURI = `data:${file.type};base64,${buffer.toString('base64')}`;
-        documentsData.push(dataURI);
-    }
-
+  if (allDataURIs.length > 0) {
     try {
         aiSummary = await categorizeReferral({
-            documents: documentsData,
+            documents: allDataURIs,
             patientName: patientFullName,
             referrerName: organizationName,
         });
@@ -84,27 +97,33 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
   
   const newReferral: Referral = {
     id: referralId,
-    // New fields
-    referrerName: organizationName, // Mapping old field
-    contactPerson: contactName, // Mapping old field
-    referrerContact: phone, // Mapping old field
-    confirmationEmail: email || '', // Mapping old field
-    patientName: patientFullName, // Mapping old field
-    patientDOB,
-    // Retain some structure from before, but with new data
-    providerNpi: '', // No longer in form
-    referrerFax: '', // No longer in form
-    patientContact: '', // No longer in form
-    patientInsurance: '', // No longer in form
-    memberId: '', // No longer in form
-    examRequested: 'Not Specified', // No longer in form
-    diagnosis: 'Not Specified', // No longer in form
+    // Referrer
+    referrerName: organizationName, 
+    contactPerson: contactName, 
+    referrerContact: phone, 
+    confirmationEmail: email || '',
     
-    // Default values for fields no longer in the form
+    // Patient
+    patientName: patientFullName,
+    patientDOB,
+    patientContact: '', // Not in form
+    patientInsurance: primaryInsurance, 
+    memberId: '', // Will be collected later
+    
+    // Exam/Services
+    servicesNeeded,
+    examRequested: 'See Services Needed',
+    diagnosis: 'See attached documents',
+    
+    // Legacy/default fields
+    providerNpi: '',
+    referrerFax: '',
+
+    // Meta
     status: 'RECEIVED',
     createdAt: now,
     updatedAt: now,
-    documents: validDocuments.map((doc, i) => ({ id: `doc-${i}`, name: doc.name, url: '#', size: doc.size })),
+    documents: allValidDocuments,
     statusHistory: [{ status: 'RECEIVED', changedAt: now }],
     internalNotes: [],
     aiSummary: aiSummary,
@@ -184,4 +203,22 @@ export async function addInternalNote(referralId: string, formData: FormData): P
 
     revalidatePath(`/dashboard/referrals/${referralId}`);
     return { message: 'Note added successfully.', success: true };
+}
+
+export async function updateReferralStatus(referralId: string, status: ReferralStatus): Promise<FormState> {
+    const referral = await db.getReferralById(referralId);
+    if (!referral) {
+        return { message: 'Referral not found.', success: false };
+    }
+
+    const now = new Date();
+    referral.status = status;
+    referral.statusHistory.push({ status, changedAt: now });
+    referral.updatedAt = now;
+
+    await db.saveReferral(referral);
+
+    revalidatePath(`/dashboard/referrals/${referralId}`);
+    revalidatePath('/dashboard');
+    return { message: 'Status updated.', success: true };
 }

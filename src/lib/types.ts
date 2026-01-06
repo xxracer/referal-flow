@@ -43,7 +43,8 @@ export type Referral = {
   memberId: string;
   authorizationNumber?: string;
   
-  // Exam Info
+  // Exam & Service Info
+  servicesNeeded: string[];
   examRequested: string;
   examOther?: string;
   diagnosis: string;

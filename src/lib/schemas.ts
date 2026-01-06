@@ -1,7 +1,17 @@
 import { z } from 'zod';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const ACCEPTED_FILE_TYPES = ['image/jpeg', 'image/png', 'application/pdf', 'image/gif'];
+const ACCEPTED_FILE_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
+
+const fileListSchema = z
+  .custom<FileList>()
+  .refine(files => files === undefined || files === null || files.length === 0 || Array.from(files).every(file => file.size <= MAX_FILE_SIZE), `Max file size is 5MB.`)
+  .refine(
+    files => files === undefined || files === null || files.length === 0 || Array.from(files).every(file => ACCEPTED_FILE_TYPES.includes(file.type)),
+    "Only .pdf, .jpeg, and .png files are accepted."
+  )
+  .optional();
+
 
 export const referralSchema = z.object({
   // Referrer Info
@@ -15,17 +25,15 @@ export const referralSchema = z.object({
   patientDOB: z.string().min(1, { message: "Patient's Date of Birth is required." }),
   patientZipCode: z.string().length(5, { message: "Enter a 5-digit ZIP code."}),
 
-  // The rest of the fields from the original form are no longer here
-  // so we will remove them from the schema validation.
+  // Insurance Info
+  primaryInsurance: z.string().min(1, { message: "Primary Insurance is required." }),
+  
+  // Services Needed
+  servicesNeeded: z.array(z.string()).min(1, { message: "Please select at least one service." }),
 
-  documents: z
-    .custom<FileList>()
-    .refine(files => !files || Array.from(files).every(file => file.size <= MAX_FILE_SIZE), `Max file size is 5MB.`)
-    .refine(
-      files => !files || Array.from(files).every(file => ACCEPTED_FILE_TYPES.includes(file.type)),
-      "Only .pdf, .jpeg, .png, and .gif files are accepted."
-    )
-    .optional(),
+  // Documents
+  referralDocuments: fileListSchema,
+  progressNotes: fileListSchema,
 });
 
 
