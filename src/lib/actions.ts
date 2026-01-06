@@ -21,42 +21,14 @@ const ACCEPTED_FILE_TYPES = ['image/jpeg', 'image/png', 'application/pdf', 'imag
 
 
 export async function submitReferral(prevState: FormState, formData: FormData): Promise<FormState> {
-  const priorityCheckboxes = ['STAT', 'URGENT'].filter(p => formData.get(p) === 'on');
-  let priority;
-  if (priorityCheckboxes.length > 1) {
-    priority = 'STAT'; // Or however you want to handle multiple selections
-  } else if (priorityCheckboxes.length === 1) {
-    priority = priorityCheckboxes[0];
-  } else {
-    priority = 'ROUTINE';
-  }
-
-  const contrastCheckboxes = ['With Contrast', 'Without Contrast', 'With and Without Contrast'].filter(c => formData.get(c) === 'on');
-  let contrast;
-  if (contrastCheckboxes.length > 0) {
-    contrast = contrastCheckboxes[0]; // Taking the first one if multiple are selected
-  }
-  
   const validatedFields = referralSchema.safeParse({
-    referrerName: formData.get('referrerName'),
-    providerNpi: formData.get('providerNpi'),
-    referrerContact: formData.get('referrerContact'),
-    referrerFax: formData.get('referrerFax'),
-    contactPerson: formData.get('contactPerson'),
-    confirmationEmail: formData.get('confirmationEmail'),
-    patientFirstName: formData.get('patientFirstName'),
-    patientLastName: formData.get('patientLastName'),
-    patientContact: formData.get('patientContact'),
+    organizationName: formData.get('organizationName'),
+    contactName: formData.get('contactName'),
+    phone: formData.get('phone'),
+    email: formData.get('email'),
+    patientFullName: formData.get('patientFullName'),
     patientDOB: formData.get('patientDOB'),
-    patientInsurance: formData.get('patientInsurance'),
-    memberId: formData.get('memberId'),
-    authorizationNumber: formData.get('authorizationNumber'),
-    examRequested: formData.get('examRequested'),
-    examOther: formData.get('examOther'),
-    diagnosis: formData.get('diagnosis'),
-    reasonForExam: formData.get('reasonForExam'),
-    priority: priority,
-    contrast: contrast,
+    patientZipCode: formData.get('patientZipCode'),
   });
 
   if (!validatedFields.success) {
@@ -84,7 +56,8 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
 
   const referralId = `TX-REF-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
   const now = new Date();
-  const patientName = `${validatedFields.data.patientFirstName} ${validatedFields.data.patientLastName}`;
+  
+  const { organizationName, contactName, phone, email, patientFullName, patientDOB, patientZipCode } = validatedFields.data;
 
   // Handle AI Categorization
   let aiSummary: AISummary | undefined = undefined;
@@ -100,8 +73,8 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
     try {
         aiSummary = await categorizeReferral({
             documents: documentsData,
-            patientName: patientName,
-            referrerName: validatedFields.data.referrerName,
+            patientName: patientFullName,
+            referrerName: organizationName,
         });
     } catch (e) {
         console.error("AI categorization failed:", e);
@@ -111,14 +84,27 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
   
   const newReferral: Referral = {
     id: referralId,
-    ...validatedFields.data,
-    patientName: patientName,
-    patientDOB: validatedFields.data.patientDOB,
-    examRequested: validatedFields.data.examRequested,
+    // New fields
+    referrerName: organizationName, // Mapping old field
+    contactPerson: contactName, // Mapping old field
+    referrerContact: phone, // Mapping old field
+    confirmationEmail: email || '', // Mapping old field
+    patientName: patientFullName, // Mapping old field
+    patientDOB,
+    // Retain some structure from before, but with new data
+    providerNpi: '', // No longer in form
+    referrerFax: '', // No longer in form
+    patientContact: '', // No longer in form
+    patientInsurance: '', // No longer in form
+    memberId: '', // No longer in form
+    examRequested: 'Not Specified', // No longer in form
+    diagnosis: 'Not Specified', // No longer in form
+    
+    // Default values for fields no longer in the form
     status: 'RECEIVED',
     createdAt: now,
     updatedAt: now,
-    documents: validDocuments.map((doc, i) => ({ id: `doc-${i}`, name: doc.name, url: '#', size: doc.size })), // URL is placeholder
+    documents: validDocuments.map((doc, i) => ({ id: `doc-${i}`, name: doc.name, url: '#', size: doc.size })),
     statusHistory: [{ status: 'RECEIVED', changedAt: now }],
     internalNotes: [],
     aiSummary: aiSummary,
@@ -164,24 +150,6 @@ export async function checkStatus(prevState: FormState, formData: FormData): Pro
             updatedAt: referral.updatedAt.toISOString(),
         }
     };
-}
-
-
-export async function updateReferralStatus(referralId: string, status: ReferralStatus, notes?: string): Promise<void> {
-    const referral = await db.getReferralById(referralId);
-    if (!referral) {
-        throw new Error('Referral not found');
-    }
-
-    const now = new Date();
-    referral.status = status;
-    referral.updatedAt = now;
-    referral.statusHistory.push({ status, changedAt: now, notes });
-
-    await db.saveReferral(referral);
-
-    revalidatePath('/dashboard');
-    revalidatePath(`/dashboard/referrals/${referralId}`);
 }
 
 
