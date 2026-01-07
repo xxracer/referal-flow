@@ -313,10 +313,4 @@ export default function ReferPage() {
                 </Alert>
             )}
             
-            <SubmitButton />
-          </form>
-        </div>
-      </main>
-    </div>
-  );
-}
+            <SubmitButton

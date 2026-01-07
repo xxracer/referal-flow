@@ -127,33 +127,4 @@ export default function StatusPage() {
                                     <AlertTitle className="text-green-800">Note Added</AlertTitle>
                                     <AlertDescription className="text-green-700">
                                         Your note has been successfully added to the referral.
-                                    </AlertDescription>
-                                </Alert>
-                            )}
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                             <div className="flex justify-between items-center">
-                                <span className="text-muted-foreground">Current Status:</span>
-                                {formState.data?.status && <StatusBadge status={formState.data.status} />}
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-muted-foreground">Last Updated:</span>
-                                <span className="font-medium">{formState.data?.updatedAt ? formatDate(formState.data.updatedAt) : 'N/A'}</span>
-                            </div>
-                            <Alert>
-                                <CheckCircle className="h-4 w-4" />
-                                <AlertTitle>Next Steps</AlertTitle>
-                                <AlertDescription>
-                                    If your referral is accepted, our team will contact the patient directly to schedule an appointment. No further action is needed from you at this time.
-                                </AlertDescription>
-                            </Alert>
-                        </CardContent>
-                    </Card>
-                )}
-             </div>
-          )}
-        </div>
-      </main>
-    </div>
-  );
-}
+                                    </Aler
