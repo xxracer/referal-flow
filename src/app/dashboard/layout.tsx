@@ -32,7 +32,7 @@ import { signOut } from '@/firebase/auth/client';
 import { Loader2 } from 'lucide-react';
 
 // --- Add your personal email here ---
-const PERSONAL_AUTHORIZED_EMAIL = 'tu-email-personal@gmail.com'; // <--- Reemplaza esto
+const PERSONAL_AUTHORIZED_EMAIL = 'maijelcancines2@gmail.com'; // <--- Reemplaza esto
 const AUTHORIZED_DOMAIN = 'actiniumholdings.com';
 
 function isAuthorized(email: string | null | undefined): boolean {
