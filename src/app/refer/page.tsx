@@ -13,12 +13,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Calendar as CalendarIcon, FileUp, Loader2, AlertCircle, Phone, Mail, Printer } from 'lucide-react';
+import { FileUp, Loader2, AlertCircle, Phone, Mail, Printer } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import SiteHeader from '@/components/layout/site-header';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { format } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 
@@ -147,28 +144,7 @@ export default function ReferPage() {
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="patientDOB">Date of Birth *</Label>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button
-                                variant={"outline"}
-                                className={cn("w-full justify-start text-left font-normal", !form.watch('patientDOB') && "text-muted-foreground")}
-                                >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {form.watch('patientDOB') ? format(new Date(form.watch('patientDOB')), "MM/dd/yyyy") : <span>mm/dd/yyyy</span>}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0">
-                                <Calendar
-                                    mode="single"
-                                    selected={form.watch('patientDOB') ? new Date(form.watch('patientDOB')) : undefined}
-                                    onSelect={(date) => form.setValue('patientDOB', date ? format(date, 'yyyy-MM-dd') : '')}
-                                    initialFocus
-                                    captionLayout="dropdown-buttons" 
-                                    fromYear={1900} toYear={new Date().getFullYear()}
-                                />
-                            </PopoverContent>
-                        </Popover>
-                        <Input type="hidden" id="patientDOB" name="patientDOB" value={form.watch('patientDOB')} />
+                        <Input id="patientDOB" name="patientDOB" placeholder="YYYY-MM-DD" />
                         {formState.errors?.patientDOB && <p className="text-sm text-destructive">{formState.errors.patientDOB[0]}</p>}
                     </div>
                      <div className="space-y-2 md:col-span-2">

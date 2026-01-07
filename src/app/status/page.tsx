@@ -9,10 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, AlertCircle, Search, Clock, Info, CheckCircle } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
-import { CalendarIcon } from 'lucide-react';
+import { Loader2, AlertCircle, Search, Info, CheckCircle } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import SiteHeader from '@/components/layout/site-header';
 import { checkStatus, type FormState } from '@/lib/actions';
@@ -33,8 +30,7 @@ export default function StatusPage() {
   const searchParams = useSearchParams();
   const initialReferralId = searchParams.get('id') || '';
   const [referralId, setReferralId] = useState(initialReferralId);
-  const [patientDOB, setPatientDOB] = useState<Date | undefined>();
-
+  
   const initialState: FormState = { message: '', success: false };
   const [formState, dispatch] = useActionState(checkStatus, initialState);
 
@@ -43,7 +39,9 @@ export default function StatusPage() {
     // We only reset if the form was successful and there was no initial ID.
     if (formState.success && !initialReferralId) {
       setReferralId('');
-      setPatientDOB(undefined);
+      // Clear patientDOB input if needed, but it's an uncontrolled component now.
+      const dobInput = document.getElementById('patientDOB') as HTMLInputElement;
+      if (dobInput) dobInput.value = '';
     }
   }, [formState, initialReferralId]);
 
@@ -72,31 +70,7 @@ export default function StatusPage() {
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="patientDOB">Patient's Date of Birth</Label>
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <Button
-                            variant={"outline"}
-                            className={cn(
-                                "w-full justify-start text-left font-normal",
-                                !patientDOB && "text-muted-foreground"
-                            )}
-                            >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {patientDOB ? formatDate(patientDOB, 'yyyy-MM-dd') : <span>Pick a date</span>}
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                            <Calendar
-                            mode="single"
-                            selected={patientDOB}
-                            onSelect={setPatientDOB}
-                            initialFocus
-                            captionLayout="dropdown-buttons" 
-                            fromYear={1900} toYear={new Date().getFullYear()}
-                            />
-                        </PopoverContent>
-                    </Popover>
-                    <Input type="hidden" id="patientDOB" name="patientDOB" value={patientDOB ? formatDate(patientDOB, 'yyyy-MM-dd') : ''} />
+                    <Input id="patientDOB" name="patientDOB" placeholder="YYYY-MM-DD" required />
                 </div>
                 {referralId && (
                     <div className="space-y-2">
@@ -128,3 +102,26 @@ export default function StatusPage() {
                                     <AlertDescription className="text-green-700">
                                         Your note has been successfully added to the referral.
                                     </Aler
+tDescription>
+                                </Alert>
+                            )}
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                             <div>
+                                <p className="text-sm text-muted-foreground">Current Status:</p>
+                                <StatusBadge status={formState.data?.status} />
+                            </div>
+                             <div>
+                                <p className="text-sm text-muted-foreground">Last Updated:</p>
+                                <p className="font-medium">{formatDate(formState.data?.updatedAt, 'PPpp')}</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
