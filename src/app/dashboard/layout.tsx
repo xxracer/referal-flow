@@ -1,5 +1,7 @@
+'use client';
+
 import Link from 'next/link';
-import { Home, FileText, Settings, LogOut, FilePlus } from 'lucide-react';
+import { Home, FilePlus, Settings, LogOut } from 'lucide-react';
 import {
   SidebarProvider,
   Sidebar,
@@ -23,14 +25,72 @@ import {
 } from '@/components/ui/dropdown-menu';
 import Logo from '@/components/logo';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { useUser } from '@/firebase/auth/use-user';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { signOut } from '@/firebase/auth/client';
+import { Loader2 } from 'lucide-react';
+
+// --- Add your personal email here ---
+const PERSONAL_AUTHORIZED_EMAIL = 'tu-email-personal@gmail.com'; // <--- Reemplaza esto
+const AUTHORIZED_DOMAIN = 'actiniumholdings.com';
+
+function isAuthorized(email: string | null | undefined): boolean {
+  if (!email) return false;
+  if (email === PERSONAL_AUTHORIZED_EMAIL) return true;
+  if (email.endsWith(`@${AUTHORIZED_DOMAIN}`)) return true;
+  return false;
+}
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const avatarImage = PlaceHolderImages.find((img) => img.id === 'avatar');
+  const { user, loading } = useUser();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null; // or a loading skeleton
+  }
+  
+  if (!isAuthorized(user.email)) {
+    return (
+        <div className="flex flex-col h-screen items-center justify-center text-center">
+            <h1 className="text-2xl font-bold">Acceso Denegado</h1>
+            <p className="text-muted-foreground">
+                No tienes permiso para acceder a este portal.
+            </p>
+            <Button onClick={() => signOut().then(() => router.push('/'))} className="mt-4">
+                Cerrar Sesión
+            </Button>
+        </div>
+    )
+  }
+
+  const getInitials = (name: string | null | undefined) => {
+    if (!name) return 'U';
+    const names = name.split(' ');
+    if (names.length > 1) {
+      return names[0][0] + names[names.length - 1][0];
+    }
+    return name[0];
+  };
+
 
   return (
     <SidebarProvider>
@@ -78,19 +138,20 @@ export default function DashboardLayout({
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="rounded-full">
                 <Avatar>
-                  {avatarImage && <AvatarImage src={avatarImage.imageUrl} />}
-                  <AvatarFallback>JD</AvatarFallback>
+                  {user.photoURL && <AvatarImage src={user.photoURL} alt={user.displayName || ''} />}
+                  <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Staff Account</DropdownMenuLabel>
+              <DropdownMenuLabel>{user.displayName || 'Staff Account'}</DropdownMenuLabel>
+              <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">{user.email}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem>Settings</DropdownMenuItem>
               <DropdownMenuItem>Support</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/"><LogOut className="mr-2 h-4 w-4" /> Logout</Link>
+              <DropdownMenuItem onClick={() => signOut().then(() => router.push('/login'))}>
+                <LogOut className="mr-2 h-4 w-4" /> Logout
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
