@@ -41,6 +41,7 @@ export type Referral = {
   patientContact: string;
   patientInsurance: string;
   memberId: string;
+  patientZipCode: string;
   authorizationNumber?: string;
   
   // Exam & Service Info

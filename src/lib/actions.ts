@@ -109,6 +109,7 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
     patientContact: '', // Not in form
     patientInsurance: primaryInsurance, 
     memberId: '', // Will be collected later
+    patientZipCode: patientZipCode,
     
     // Exam/Services
     servicesNeeded,
