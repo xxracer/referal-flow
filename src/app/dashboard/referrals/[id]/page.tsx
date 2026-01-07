@@ -35,7 +35,9 @@ import {
   Stethoscope,
   Building,
   ClipboardList,
-  Info
+  Info,
+  Briefcase,
+  UserPlus
 } from 'lucide-react';
 import StatusBadge from '@/components/referrals/status-badge';
 import { formatDate } from '@/lib/utils';
@@ -60,7 +62,7 @@ function SubmitButton({ text, icon: Icon }: { text: string, icon?: React.Element
     );
 }
 
-export default function ReferralDetailPage({ params }: { params: { id: string } }) {
+export default function ReferralDetailPage({ params }: { params: { id:string } }) {
   const [referral, setReferral] = useState<Referral | null>(null);
 
   useEffect(() => {
@@ -110,84 +112,138 @@ export default function ReferralDetailPage({ params }: { params: { id: string } 
     toast({ title: "Status Updated", description: `Referral status changed to ${status.replace('_', ' ').toLowerCase()}.` });
   };
   
+  const servicesMap = {
+    skilledNursing: 'Skilled Nursing (SN)',
+    physicalTherapy: 'Physical Therapy (PT)',
+    occupationalTherapy: 'Occupational Therapy (OT)',
+    speechTherapy: 'Speech Therapy (ST)',
+    homeHealthAide: 'Home Health Aide (HHA)',
+    medicalSocialWorker: 'Medical Social Worker (MSW)',
+    providerAttendant: 'Provider Attendant Services (Medicaid)',
+    other: 'Other'
+  };
+
+  const getServiceLabel = (serviceId: string): string => {
+    return servicesMap[serviceId as keyof typeof servicesMap] || serviceId;
+  };
+  
   return (
     <div className="space-y-6">
-        <Link href="/dashboard" className="flex items-center text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Dashboard
-        </Link>
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-headline text-3xl">Referral Details</h1>
-          <p className="font-mono text-sm text-muted-foreground">{optimisticReferral.id}</p>
-        </div>
-        <StatusBadge status={optimisticReferral.status} className="text-base" />
-      </div>
-
+      <Link href="/dashboard" className="flex items-center text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Dashboard
+      </Link>
+      
       <div className="grid md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 space-y-6">
-           <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2"><User className="text-primary" /> Patient Info</CardTitle></CardHeader>
-            <CardContent className="grid sm:grid-cols-2 gap-4 text-sm">
-                <p><strong>Name:</strong> {optimisticReferral.patientName}</p>
-                <p><strong>DOB:</strong> {formatDate(optimisticReferral.patientDOB)}</p>
-                <p><strong>Contact:</strong> {optimisticReferral.patientContact}</p>
-                <p><strong>Insurance:</strong> {optimisticReferral.patientInsurance}</p>
-                <p><strong>Member ID:</strong> {optimisticReferral.memberId}</p>
-                {optimisticReferral.authorizationNumber && <p><strong>Auth #:</strong> {optimisticReferral.authorizationNumber}</p>}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2"><Building className="text-primary" /> Referrer Info</CardTitle></CardHeader>
-            <CardContent className="grid sm:grid-cols-2 gap-4 text-sm">
-                <p><strong>Provider/Office:</strong> {optimisticReferral.referrerName}</p>
-                <p><strong>NPI#:</strong> {optimisticReferral.providerNpi}</p>
-                <p><strong>Phone:</strong> {optimisticReferral.referrerContact}</p>
-                <p><strong>Fax:</strong> {optimisticReferral.referrerFax}</p>
-                <p><strong>Contact Person:</strong> {optimisticReferral.contactPerson}</p>
-                <p><strong>Confirmation Email:</strong> {optimisticReferral.confirmationEmail}</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2"><ClipboardList className="text-primary" /> Exam Info</CardTitle></CardHeader>
-            <CardContent className="grid sm:grid-cols-2 gap-4 text-sm">
-                <p><strong>Exam:</strong> {optimisticReferral.examRequested}{optimisticReferral.examRequested === 'Other' && ` (${optimisticReferral.examOther})`}</p>
-                <p><strong>Priority:</strong> <Badge variant={optimisticReferral.priority === 'STAT' || optimisticReferral.priority === 'URGENT' ? 'destructive' : 'secondary'}>{optimisticReferral.priority}</Badge></p>
-                {optimisticReferral.contrast && <p><strong>Contrast:</strong> {optimisticReferral.contrast}</p>}
-                <div className="sm:col-span-2">
-                    <p><strong>Diagnosis/Symptoms:</strong></p>
-                    <p className="text-muted-foreground p-2 bg-muted rounded-md mt-1">{optimisticReferral.diagnosis}</p>
-                </div>
-                 {optimisticReferral.reasonForExam && (
-                    <div className="sm:col-span-2">
-                        <p><strong>Reason for Exam:</strong></p>
-                        <p className="text-muted-foreground p-2 bg-muted rounded-md mt-1">{optimisticReferral.reasonForExam}</p>
+        <div className="md:col-span-2">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline text-3xl">Central Home Health — Referral Submission</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6 text-base">
+                    <div className="space-y-1">
+                        <p><strong>Reference Number:</strong> {optimisticReferral.id}</p>
+                        <p>
+                            <strong>Status:</strong> <span className="capitalize">{optimisticReferral.status.replace("_", " ").toLowerCase()}</span> 
+                            ({optimisticReferral.documents.length === 0 ? "No docs uploaded" : `${optimisticReferral.documents.length} doc(s) uploaded`})
+                        </p>
                     </div>
-                 )}
-            </CardContent>
-          </Card>
 
+                    <Separator />
+                    
+                    <div className="space-y-2">
+                        <h3 className="text-xl font-headline font-semibold">Referral Source</h3>
+                        <p><strong>Organization / Facility:</strong> {optimisticReferral.referrerName}</p>
+                        <p><strong>Contact Name:</strong> {optimisticReferral.contactPerson}</p>
+                        <p><strong>Phone:</strong> {optimisticReferral.referrerContact}</p>
+                        <p><strong>Email:</strong> {optimisticReferral.confirmationEmail}</p>
+                    </div>
 
-          {optimisticReferral.aiSummary && (
-             <Card>
-                <CardHeader><CardTitle className="flex items-center gap-2"><Sparkles className="text-primary" /> AI-Powered Suggestions</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
-                    <div>
-                        <h4 className="font-semibold flex items-center gap-2 mb-2"><Tag className="h-4 w-4"/> Suggested Categories</h4>
-                        <div className="flex flex-wrap gap-2">
-                            {optimisticReferral.aiSummary.suggestedCategories.map(cat => <Badge key={cat} variant="secondary">{cat}</Badge>)}
+                    <Separator />
+
+                    <div className="space-y-2">
+                        <h3 className="text-xl font-headline font-semibold">Patient Information</h3>
+                        <p><strong>Patient Name:</strong> {optimisticReferral.patientName}</p>
+                        <p><strong>DOB:</strong> {formatDate(optimisticReferral.patientDOB, 'yyyy-MM-dd')}</p>
+                        {/* Assuming patientZipCode exists, otherwise it might be part of another field */}
+                        {/* <p><strong>ZIP:</strong> {optimisticReferral.patientZipCode}</p> */}
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-2">
+                        <h3 className="text-xl font-headline font-semibold">Insurance</h3>
+                        <p><strong>Primary Insurance:</strong> {optimisticReferral.patientInsurance}</p>
+                        {/* The following fields are not in the current model but can be added */}
+                        {/* <p><strong>Plan Name:</strong> dual</p> */}
+                        <p><strong>Member ID:</strong> {optimisticReferral.memberId || 'Not Provided'}</p>
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-2">
+                        <h3 className="text-xl font-headline font-semibold">Services Needed</h3>
+                        <ul className="list-disc list-inside">
+                           {optimisticReferral.servicesNeeded?.map(service => <li key={service}>{getServiceLabel(service)}</li>)}
+                        </ul>
+                    </div>
+                    
+                    <Separator />
+
+                    {optimisticReferral.aiSummary && (
+                        <>
+                        <div className="space-y-2">
+                            <h3 className="text-xl font-headline font-semibold flex items-center gap-2"><Sparkles className="text-primary" /> AI-Powered Suggestions</h3>
+                             <h4 className="font-semibold flex items-center gap-2 mt-4"><Tag className="h-4 w-4"/> Suggested Categories</h4>
+                            <div className="flex flex-wrap gap-2">
+                                {optimisticReferral.aiSummary.suggestedCategories.map(cat => <Badge key={cat} variant="secondary">{cat}</Badge>)}
+                            </div>
+                            <h4 className="font-semibold flex items-center gap-2 mt-2"><Lightbulb className="h-4 w-4"/> Reasoning</h4>
+                            <p className="text-sm text-muted-foreground p-3 bg-muted rounded-md">{optimisticReferral.aiSummary.reasoning}</p>
                         </div>
-                    </div>
-                     <div>
-                        <h4 className="font-semibold flex items-center gap-2 mb-2"><Lightbulb className="h-4 w-4"/> Reasoning</h4>
-                        <p className="text-sm text-muted-foreground p-3 bg-muted rounded-md">{optimisticReferral.aiSummary.reasoning}</p>
-                    </div>
-                </CardContent>
-             </Card>
-          )}
+                        <Separator />
+                        </>
+                    )}
 
+
+                    <div className="space-y-2">
+                        <h3 className="text-xl font-headline font-semibold">Uploaded Files</h3>
+                        {optimisticReferral.documents.length > 0 ? (
+                            <ul className="list-disc list-inside text-sm">
+                                {optimisticReferral.documents.map(doc => (
+                                    <li key={doc.id} className="flex items-center justify-between p-2 rounded-md bg-muted">
+                                        <span>{doc.name}</span>
+                                        <span className="text-muted-foreground text-xs">{(doc.size / 1024).toFixed(1)} KB</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : <p>No files uploaded.</p>}
+                    </div>
+
+                </CardContent>
+            </Card>
+
+        </div>
+
+        <div className="space-y-6">
+          <Card>
+            <CardHeader><CardTitle className="flex items-center gap-2"><HeartPulse className="text-primary" /> Manage Referral</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Change Status</Label>
+                <Select onValueChange={(value) => handleStatusChange(value as ReferralStatus)} value={optimisticReferral.status}>
+                  <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="RECEIVED">Received</SelectItem>
+                    <SelectItem value="IN_REVIEW">In Review</SelectItem>
+                    <SelectItem value="ACCEPTED">Accepted</SelectItem>
+                    <SelectItem value="REJECTED">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+          
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><MessageSquare className="text-primary" /> Internal Notes</CardTitle></CardHeader>
             <CardContent>
@@ -221,42 +277,6 @@ export default function ReferralDetailPage({ params }: { params: { id: string } 
                   </Button>
                 </form>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2"><HeartPulse className="text-primary" /> Manage Referral</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Change Status</Label>
-                <Select onValueChange={(value) => handleStatusChange(value as ReferralStatus)} value={optimisticReferral.status}>
-                  <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="RECEIVED">Received</SelectItem>
-                    <SelectItem value="IN_REVIEW">In Review</SelectItem>
-                    <SelectItem value="ACCEPTED">Accepted</SelectItem>
-                    <SelectItem value="REJECTED">Rejected</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2"><File className="text-primary" /> Documents</CardTitle></CardHeader>
-            <CardContent>
-                {optimisticReferral.documents.length > 0 ? (
-                    <ul className="space-y-2 text-sm">
-                        {optimisticReferral.documents.map(doc => (
-                            <li key={doc.id} className="flex items-center justify-between p-2 rounded-md bg-muted">
-                                <span>{doc.name}</span>
-                                <span className="text-muted-foreground text-xs">{(doc.size / 1024).toFixed(1)} KB</span>
-                            </li>
-                        ))}
-                    </ul>
-                ) : <p className="text-sm text-muted-foreground text-center py-4">No documents attached.</p>}
             </CardContent>
           </Card>
 
