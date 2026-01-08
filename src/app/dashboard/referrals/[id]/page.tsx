@@ -24,7 +24,7 @@ import {
   HeartPulse,
   CalendarDays,
   Mail,
-  Timeline,
+  History,
   MessageSquare,
   Sparkles,
   Lightbulb,
@@ -43,8 +43,7 @@ import StatusBadge from '@/components/referrals/status-badge';
 import { formatDate } from '@/lib/utils';
 import type { Referral, ReferralStatus } from '@/lib/types';
 import { addInternalNote, updateReferralStatus } from '@/lib/actions';
-import { useActionState, useFormStatus } from 'react-dom';
-import { useEffect, useState, useOptimistic, startTransition } from 'react';
+import { useActionState, useFormStatus, useEffect, useState, useOptimistic, startTransition } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
@@ -288,7 +287,7 @@ export default function ReferralDetailPage({ params }: { params: { id:string } }
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2"><Timeline className="text-primary" /> Status History</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="flex items-center gap-2"><History className="text-primary" /> Status History</CardTitle></CardHeader>
             <CardContent>
                 <ul className="space-y-4">
                     {optimisticReferral.statusHistory.slice().reverse().map((item, index) => (
@@ -312,5 +311,3 @@ export default function ReferralDetailPage({ params }: { params: { id:string } }
     </div>
   );
 }
-
-    
