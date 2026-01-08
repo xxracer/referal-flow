@@ -37,7 +37,7 @@ import StatusBadge from '@/components/referrals/status-badge';
 import { formatDate } from '@/lib/utils';
 import type { Referral, ReferralStatus } from '@/lib/types';
 import { addInternalNote, updateReferralStatus } from '@/lib/actions';
-import { useActionState, useEffect, useState, useOptimistic, startTransition } from 'react';
+import { useActionState, useEffect, useState, useOptimistic, startTransition, use } from 'react';
 import { useFormStatus } from 'react-dom';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
@@ -56,15 +56,16 @@ function SubmitButton({ text, icon: Icon }: { text: string, icon?: React.Element
 }
 
 export default function ReferralDetailPage({ params }: { params: { id:string } }) {
+  const safeParams = use(Promise.resolve(params));
   const [referral, setReferral] = useState<Referral | null>(null);
 
   useEffect(() => {
     const fetchReferral = async () => {
-      const data = await db.getReferralById(params.id);
+      const data = await db.getReferralById(safeParams.id);
       if (data) setReferral(data as Referral);
     };
     fetchReferral();
-  }, [params.id]);
+  }, [safeParams.id]);
 
   const [optimisticReferral, setOptimisticReferral] = useOptimistic(
     referral,
@@ -87,8 +88,8 @@ export default function ReferralDetailPage({ params }: { params: { id:string } }
   );
 
   const { toast } = useToast();
-  const [noteState, noteFormAction, isNotePending] = useActionState(addInternalNote.bind(null, params.id), { message: '', success: false });
-  const [statusState, statusFormAction, isStatusPending] = useActionState(updateReferralStatus.bind(null, params.id), { message: '', success: false });
+  const [noteState, noteFormAction, isNotePending] = useActionState(addInternalNote.bind(null, safeParams.id), { message: '', success: false });
+  const [statusState, statusFormAction, isStatusPending] = useActionState(updateReferralStatus.bind(null, safeParams.id), { message: '', success: false });
 
   if (!optimisticReferral) {
     return (
