@@ -83,13 +83,13 @@ function FileUploadArea() {
                 <div className="space-y-2">
                     <Label htmlFor="documents">Upload Referral Documents (optional)</Label>
                     <Button type="button" variant="outline" className="w-full" onClick={() => fileInputRef1.current?.click()}>
-                        Elegir archivos
+                        Choose Files
                     </Button>
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="progressNotes">Upload Progress Notes (optional)</Label>
                     <Button type="button" variant="outline" className="w-full" onClick={() => fileInputRef2.current?.click()}>
-                       Elegir archivos
+                       Choose Files
                     </Button>
                 </div>
             </div>
@@ -269,7 +269,7 @@ export default function ReferPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle className="font-headline text-2xl">Supporting Documentation (optional)</CardTitle>
+                    <CardTitle className="font-headline text-2xl">Supporting Documentation</CardTitle>
                 </CardHeader>
                 <CardContent>
                      <FileUploadArea />
