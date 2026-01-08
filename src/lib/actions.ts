@@ -176,7 +176,7 @@ export async function checkStatus(prevState: FormState, formData: FormData): Pro
 }
 
 
-export async function addInternalNote(referralId: string, formData: FormData): Promise<FormState> {
+export async function addInternalNote(referralId: string, prevState: FormState, formData: FormData): Promise<FormState> {
     const validatedFields = noteSchema.safeParse({
         note: formData.get('note'),
     });
