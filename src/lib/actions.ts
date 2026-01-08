@@ -1,3 +1,4 @@
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -56,7 +57,7 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
     };
   }
   
-  const { referralDocuments, progressNotes, ...pdfData } = validatedFields.data;
+  const { referralDocuments, progressNotes, ...formDataForPdf } = validatedFields.data;
   const referralId = `TX-REF-2026-${Date.now().toString().slice(-6)}`;
   let allUploadedDocuments: Document[] = [];
 
@@ -69,8 +70,8 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
         allUploadedDocuments.push(...await uploadFiles(progressNotes));
     }
 
-    // 2. Generate PDF from form data using AI flow
-    const pdfBytes = await generateReferralPdf(pdfData);
+    // 2. Generate PDF from form data using AI flow (only passing serializable data)
+    const pdfBytes = await generateReferralPdf(formDataForPdf);
     const pdfName = `Referral-Summary-${referralId}.pdf`;
     const pdfBlob = await put(pdfName, pdfBytes, { access: 'public', contentType: 'application/pdf', addRandomSuffix: true });
     allUploadedDocuments.push({
