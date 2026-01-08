@@ -1,45 +1,51 @@
 
 'use server';
-import { collection, doc, getDoc, getDocs, setDoc, query, orderBy, where } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
+import { collection, doc, getDoc, getDocs, setDoc, query, orderBy, where, Timestamp, Firestore, initializeFirestore, CACHE_SIZE_UNLIMITED } from 'firebase/firestore';
+import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
+import { firebaseConfig } from '@/firebase/config';
 import type { Referral } from '@/lib/types';
 
-// This function is a bit of a hack to get the firestore instance on the server.
-// The client-side initialization is different.
-async function getDb() {
-    const { firestore } = initializeFirebase();
-    if (!firestore) {
-        throw new Error("Firestore is not initialized. Make sure your Firebase configuration is correct.");
+let db: Firestore;
+
+// This function initializes Firestore on the server-side.
+// It's designed to be called once and reuse the instance.
+function getDb() {
+    if (!db) {
+        const apps = getApps();
+        const firebaseApp = apps.length > 0 ? apps[0] : initializeApp(firebaseConfig);
+        db = initializeFirestore(firebaseApp, {
+          cacheSizeBytes: CACHE_SIZE_UNLIMITED
+        });
     }
-    return firestore;
+    return db;
 }
 
 const referralsCollection = 'referrals';
 
 export async function getReferrals(): Promise<Referral[]> {
-    const db = await getDb();
-    const q = query(collection(db, referralsCollection), orderBy('createdAt', 'desc'));
+    const firestore = getDb();
+    const q = query(collection(firestore, referralsCollection), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
     if (snapshot.empty) {
       return [];
     }
-    // The data is stored as a plain object, we need to convert Date strings back to Date objects
+    // The data is stored with Timestamps, convert them to Date objects
     return snapshot.docs.map(d => {
         const data = d.data();
         return {
             ...data,
-            createdAt: new Date(data.createdAt),
-            updatedAt: new Date(data.updatedAt),
-            statusHistory: data.statusHistory.map((h: any) => ({ ...h, changedAt: new Date(h.changedAt) })),
-            internalNotes: data.internalNotes.map((n: any) => ({ ...n, createdAt: new Date(n.createdAt) })),
+            createdAt: (data.createdAt as Timestamp).toDate(),
+            updatedAt: (data.updatedAt as Timestamp).toDate(),
+            statusHistory: data.statusHistory.map((h: any) => ({ ...h, changedAt: (h.changedAt as Timestamp).toDate() })),
+            internalNotes: data.internalNotes.map((n: any) => ({ ...n, createdAt: (n.createdAt as Timestamp).toDate() })),
         } as Referral
     });
 }
 
 export async function getReferralById(id: string): Promise<Referral | undefined> {
     if (!id) return undefined;
-    const db = await getDb();
-    const docRef = doc(db, referralsCollection, id);
+    const firestore = getDb();
+    const docRef = doc(firestore, referralsCollection, id);
     const docSnap = await getDoc(docRef);
 
     if (!docSnap.exists()) {
@@ -47,47 +53,39 @@ export async function getReferralById(id: string): Promise<Referral | undefined>
     }
     
     const data = docSnap.data();
-    // Convert date strings back to Date objects
+    // Convert Timestamps to Date objects
     return {
         ...data,
-        createdAt: new Date(data.createdAt),
-        updatedAt: new Date(data.updatedAt),
-        statusHistory: data.statusHistory.map((h: any) => ({ ...h, changedAt: new Date(h.changedAt) })),
-        internalNotes: data.internalNotes.map((n: any) => ({ ...n, createdAt: new Date(n.createdAt) })),
+        createdAt: (data.createdAt as Timestamp).toDate(),
+        updatedAt: (data.updatedAt as Timestamp).toDate(),
+        statusHistory: data.statusHistory.map((h: any) => ({ ...h, changedAt: (h.changedAt as Timestamp).toDate() })),
+        internalNotes: data.internalNotes.map((n: any) => ({ ...n, createdAt: (n.createdAt as Timestamp).toDate() })),
     } as Referral;
 }
 
 export async function saveReferral(referral: Referral): Promise<Referral> {
-    const db = await getDb();
-    const docRef = doc(db, referralsCollection, referral.id);
+    const firestore = getDb();
+    const docRef = doc(firestore, referralsCollection, referral.id);
     
-    // Firestore doesn't store Date objects directly, so we convert them to ISO strings
-    const savableReferral = {
-        ...referral,
-        createdAt: referral.createdAt.toISOString(),
-        updatedAt: referral.updatedAt.toISOString(),
-        statusHistory: referral.statusHistory.map(h => ({ ...h, changedAt: h.changedAt.toISOString() })),
-        internalNotes: referral.internalNotes.map(n => ({ ...n, createdAt: n.createdAt.toISOString() })),
-    };
-    
-    await setDoc(docRef, savableReferral, { merge: true });
+    // Firestore handles native Date objects, so no conversion is needed.
+    await setDoc(docRef, referral, { merge: true });
     return referral;
 }
 
 export async function findReferral(id: string, dob: string): Promise<Referral | undefined> {
     if (!id || !dob) return undefined;
-    const db = await getDb();
-    const docRef = doc(db, referralsCollection, id);
+    const firestore = getDb();
+    const docRef = doc(firestore, referralsCollection, id);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists() && docSnap.data().patientDOB === dob) {
         const data = docSnap.data();
          return {
             ...data,
-            createdAt: new Date(data.createdAt),
-            updatedAt: new Date(data.updatedAt),
-            statusHistory: data.statusHistory.map((h: any) => ({ ...h, changedAt: new Date(h.changedAt) })),
-            internalNotes: data.internalNotes.map((n: any) => ({ ...n, createdAt: new Date(n.createdAt) })),
+            createdAt: (data.createdAt as Timestamp).toDate(),
+            updatedAt: (data.updatedAt as Timestamp).toDate(),
+            statusHistory: data.statusHistory.map((h: any) => ({ ...h, changedAt: (h.changedAt as Timestamp).toDate() })),
+            internalNotes: data.internalNotes.map((n: any) => ({ ...n, createdAt: (n.createdAt as Timestamp).toDate() })),
         } as Referral;
     }
     
