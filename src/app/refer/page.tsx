@@ -29,6 +29,26 @@ const services = [
     { id: 'other', label: 'Other' },
 ] as const;
 
+const insuranceOptions = [
+    "Medicare",
+    "Aetna Medicare",
+    "BCBS Medicare",
+    "Community Health Choice",
+    "Integranet",
+    "Molina Medicare",
+    "UHC Medicare",
+    "United Health Care Choice",
+    "United Health Care MMP",
+    "United Medicare Advantage",
+    "Wellcare Medical",
+    "Wellcare Texan Plus",
+    "Wellmed-Wellpoint Medicaid",
+    "Wellpoint Medicare",
+    "Wellpoint MMP",
+    "Other"
+];
+
+
 function FileUploadArea({ formState }: { formState: FormState }) {
     const [files, setFiles] = useState<File[]>([]);
     const [totalSize, setTotalSize] = useState(0);
@@ -259,9 +279,18 @@ export default function ReferPage() {
               </CardHeader>
               <CardContent className="grid md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="primaryInsurance">Primary Insurance Payer *</Label>
-                  <Input id="primaryInsurance" name="primaryInsurance" placeholder="e.g., United Healthcare" />
-                  {formState.errors?.primaryInsurance && <p className="text-sm text-destructive">{formState.errors.primaryInsurance[0]}</p>}
+                    <Label htmlFor="primaryInsurance">Primary Insurance Payer *</Label>
+                    <Select name="primaryInsurance">
+                        <SelectTrigger id="primaryInsurance">
+                            <SelectValue placeholder="Select..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {insuranceOptions.map(option => (
+                                <SelectItem key={option} value={option}>{option}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    {formState.errors?.primaryInsurance && <p className="text-sm text-destructive">{formState.errors.primaryInsurance[0]}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="memberId">Member ID# *</Label>
