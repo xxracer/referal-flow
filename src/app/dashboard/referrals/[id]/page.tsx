@@ -207,7 +207,7 @@ export default function ReferralDetailPage({ params }: { params: { id:string } }
                             <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                                 {optimisticReferral.documents.map(doc => (
                                     <li key={doc.id} className="flex items-center justify-between p-3 rounded-md bg-muted">
-                                        <span className="font-medium">{doc.name}</span>
+                                        <span className="font-medium truncate" title={doc.name}>{doc.name}</span>
                                         <Button variant="ghost" size="sm" asChild>
                                            <a href={doc.url} target="_blank" rel="noopener noreferrer">Download</a>
                                         </Button>

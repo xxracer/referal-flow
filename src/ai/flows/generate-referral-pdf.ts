@@ -32,19 +32,24 @@ const summaryPrompt = ai.definePrompt({
     Use clear headings for each section (Referrer, Patient, Insurance, Services).
     Present the information in an easy-to-read format.
 
-    Referral Data:
-    - Organization: {{{formData.organizationName}}}
+    ## Referrer Information
+    - Organization / Facility: {{{formData.organizationName}}}
     - Contact Person: {{{formData.contactName}}}
     - Contact Phone: {{{formData.phone}}}
     - Contact Email: {{{formData.email}}}
     
-    - Patient Name: {{{formData.patientFullName}}}
-    - Patient DOB: {{{formData.patientDOB}}}
-    - Patient ZIP: {{{formData.patientZipCode}}}
+    ## Patient Information
+    - Full Name: {{{formData.patientFullName}}}
+    - Date of Birth: {{{formData.patientDOB}}}
+    - ZIP Code: {{{formData.patientZipCode}}}
 
+    ## Insurance Information
     - Primary Insurance: {{{formData.primaryInsurance}}}
 
-    - Services Needed: {{#each formData.servicesNeeded}}{{{this}}}, {{/each}}
+    ## Services Requested
+    {{#each formData.servicesNeeded}}
+    - {{{this}}}
+    {{/each}}
     `,
 });
 
