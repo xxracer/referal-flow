@@ -94,6 +94,7 @@ export default function ReferralDetailPage({ params }: { params: { id:string } }
 
   const { toast } = useToast();
   const [noteState, noteFormAction, isNotePending] = useActionState(addInternalNote.bind(null, params.id), { message: '', success: false });
+  const [statusState, statusFormAction, isStatusPending] = useActionState(updateReferralStatus.bind(null, params.id), { message: '', success: false });
 
   if (!optimisticReferral) {
     return (
@@ -107,19 +108,12 @@ export default function ReferralDetailPage({ params }: { params: { id:string } }
     startTransition(() => {
         setOptimisticReferral({ status });
     });
-    await updateReferralStatus(params.id, status);
+    const formData = new FormData();
+    formData.append('status', status);
+    await statusFormAction(formData);
     toast({ title: "Status Updated", description: `Referral status changed to ${status.replace('_', ' ').toLowerCase()}.` });
   };
   
-  const handleDownload = (docUrl: string, docName: string) => {
-    const link = document.createElement('a');
-    link.href = docUrl;
-    link.download = docName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   const servicesMap = {
     skilledNursing: 'Skilled Nursing (SN)',
     physicalTherapy: 'Physical Therapy (PT)',
@@ -219,8 +213,8 @@ export default function ReferralDetailPage({ params }: { params: { id:string } }
                                 {optimisticReferral.documents.map(doc => (
                                     <li key={doc.id} className="flex items-center justify-between p-3 rounded-md bg-muted">
                                         <span className="font-medium">{doc.name}</span>
-                                        <Button variant="ghost" size="sm" onClick={() => handleDownload(doc.url, doc.name)}>
-                                            Download
+                                        <Button variant="ghost" size="sm" asChild>
+                                           <a href={doc.url} target="_blank" rel="noopener noreferrer">Download</a>
                                         </Button>
                                     </li>
                                 ))}
