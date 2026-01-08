@@ -53,15 +53,13 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
   try {
     // 1. Upload user-provided documents, preserving original names
     for (const file of documentFiles) {
-      if (file && file.size > 0) {
-        const blob = await put(file.name, file, { access: 'public', addRandomSuffix: false });
-        uploadedDocuments.push({
-            id: blob.pathname,
-            name: file.name,
-            url: blob.url,
-            size: file.size,
-        });
-      }
+      const blob = await put(file.name, file, { access: 'public', addRandomSuffix: false });
+      uploadedDocuments.push({
+          id: blob.pathname,
+          name: file.name,
+          url: blob.url,
+          size: file.size,
+      });
     }
 
     // 2. Generate PDF from form data using AI flow
