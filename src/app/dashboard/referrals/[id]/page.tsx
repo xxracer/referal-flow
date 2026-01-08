@@ -1,6 +1,7 @@
+
 'use client';
-import { notFound, useParams } from 'next/navigation';
-import { db } from '@/lib/data';
+import { notFound } from 'next/navigation';
+import { getReferralById } from '@/lib/data';
 import {
   Card,
   CardContent,
@@ -58,9 +59,8 @@ function SubmitButton({ text, icon: Icon }: { text: string, icon?: React.Element
     );
 }
 
-export default function ReferralDetailPage() {
-  const params = useParams();
-  const id = params.id as string;
+export default function ReferralDetailPage({ params }: { params: { id: string } }) {
+  const { id } = params;
   const [referral, setReferral] = useState<Referral | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -68,7 +68,7 @@ export default function ReferralDetailPage() {
     if (!id) return;
     const fetchReferral = async () => {
       setLoading(true);
-      const data = await db.getReferralById(id);
+      const data = await getReferralById(id);
       if (data) {
         setReferral(data as Referral);
       } else {

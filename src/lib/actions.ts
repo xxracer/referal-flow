@@ -4,7 +4,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { referralSchema } from './schemas';
-import { db } from './data';
+import { saveReferral, findReferral, getReferralById } from './data';
 import type { Referral, ReferralStatus, Document } from './types';
 import { categorizeReferral } from '@/ai/flows/smart-categorization';
 import { generateReferralPdf } from '@/ai/flows/generate-referral-pdf';
@@ -129,7 +129,7 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
   };
 
   try {
-    await db.saveReferral(newReferral);
+    await saveReferral(newReferral);
   } catch (e) {
     return { message: 'Database error: Failed to save referral.', success: false, isSubmitting: false };
   }
@@ -139,7 +139,7 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
 }
 
 export async function checkStatus(prevState: FormState, formData: FormData): Promise<FormState> {
-    const referral = await db.findReferral(formData.get('referralId') as string, formData.get('patientDOB') as string);
+    const referral = await findReferral(formData.get('referralId') as string, formData.get('patientDOB') as string);
 
     if (!referral) {
         return { message: 'No matching referral found. Please check the ID and date of birth.', success: false };
@@ -156,7 +156,7 @@ export async function checkStatus(prevState: FormState, formData: FormData): Pro
             createdAt: now,
         });
         referral.updatedAt = now;
-        await db.saveReferral(referral);
+        await saveReferral(referral);
         noteAdded = true;
         revalidatePath(`/dashboard/referrals/${referral.id}`);
     }
@@ -173,7 +173,7 @@ export async function checkStatus(prevState: FormState, formData: FormData): Pro
 }
 
 export async function addInternalNote(referralId: string, prevState: FormState, formData: FormData): Promise<FormState> {
-    const referral = await db.getReferralById(referralId);
+    const referral = await getReferralById(referralId);
     if (!referral) {
         return { message: 'Referral not found.', success: false };
     }
@@ -192,7 +192,7 @@ export async function addInternalNote(referralId: string, prevState: FormState, 
     });
     referral.updatedAt = now;
     
-    await db.saveReferral(referral);
+    await saveReferral(referral);
 
     revalidatePath(`/dashboard/referrals/${referralId}`);
     return { message: 'Note added successfully.', success: true };
@@ -204,7 +204,7 @@ export async function updateReferralStatus(referralId: string, prevState: FormSt
         return { message: 'Status is required.', success: false };
     }
     
-    const referral = await db.getReferralById(referralId);
+    const referral = await getReferralById(referralId);
     if (!referral) {
         return { message: 'Referral not found.', success: false };
     }
@@ -214,7 +214,7 @@ export async function updateReferralStatus(referralId: string, prevState: FormSt
     referral.statusHistory.push({ status, changedAt: now });
     referral.updatedAt = now;
 
-    await db.saveReferral(referral);
+    await saveReferral(referral);
 
     revalidatePath(`/dashboard/referrals/${referralId}`);
     revalidatePath('/dashboard');

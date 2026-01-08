@@ -1,3 +1,4 @@
+
 'use server';
 import { collection, doc, getDoc, getDocs, setDoc, query, orderBy, where } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
@@ -15,8 +16,7 @@ async function getDb() {
 
 const referralsCollection = 'referrals';
 
-export const db = {
-  getReferrals: async (): Promise<Referral[]> => {
+export async function getReferrals(): Promise<Referral[]> {
     const db = await getDb();
     const q = query(collection(db, referralsCollection), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
@@ -25,7 +25,7 @@ export const db = {
     }
     // The data is stored as a plain object, we need to convert Date strings back to Date objects
     return snapshot.docs.map(d => {
-        const data = d.data() as any;
+        const data = d.data();
         return {
             ...data,
             createdAt: new Date(data.createdAt),
@@ -34,9 +34,10 @@ export const db = {
             internalNotes: data.internalNotes.map((n: any) => ({ ...n, createdAt: new Date(n.createdAt) })),
         } as Referral
     });
-  },
+}
 
-  getReferralById: async (id: string): Promise<Referral | undefined> => {
+export async function getReferralById(id: string): Promise<Referral | undefined> {
+    if (!id) return undefined;
     const db = await getDb();
     const docRef = doc(db, referralsCollection, id);
     const docSnap = await getDoc(docRef);
@@ -45,7 +46,7 @@ export const db = {
       return undefined;
     }
     
-    const data = docSnap.data() as any;
+    const data = docSnap.data();
     // Convert date strings back to Date objects
     return {
         ...data,
@@ -54,9 +55,9 @@ export const db = {
         statusHistory: data.statusHistory.map((h: any) => ({ ...h, changedAt: new Date(h.changedAt) })),
         internalNotes: data.internalNotes.map((n: any) => ({ ...n, createdAt: new Date(n.createdAt) })),
     } as Referral;
-  },
+}
 
-  saveReferral: async (referral: Referral): Promise<Referral> => {
+export async function saveReferral(referral: Referral): Promise<Referral> {
     const db = await getDb();
     const docRef = doc(db, referralsCollection, referral.id);
     
@@ -69,17 +70,18 @@ export const db = {
         internalNotes: referral.internalNotes.map(n => ({ ...n, createdAt: n.createdAt.toISOString() })),
     };
     
-    await setDoc(docRef, savableReferral);
+    await setDoc(docRef, savableReferral, { merge: true });
     return referral;
-  },
+}
 
-  findReferral: async (id: string, dob: string): Promise<Referral | undefined> => {
+export async function findReferral(id: string, dob: string): Promise<Referral | undefined> {
+    if (!id || !dob) return undefined;
     const db = await getDb();
     const docRef = doc(db, referralsCollection, id);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists() && docSnap.data().patientDOB === dob) {
-        const data = docSnap.data() as any;
+        const data = docSnap.data();
          return {
             ...data,
             createdAt: new Date(data.createdAt),
@@ -90,5 +92,4 @@ export const db = {
     }
     
     return undefined;
-  }
-};
+}

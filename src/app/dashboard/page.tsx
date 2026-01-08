@@ -1,4 +1,5 @@
-import { db } from '@/lib/data';
+
+import { getReferrals } from '@/lib/data';
 import Link from 'next/link';
 import {
   Accordion,
@@ -96,7 +97,7 @@ function ReferralDetail({ referral }: { referral: Referral }) {
 
 
 export default async function DashboardPage() {
-  const referrals = await db.getReferrals();
+  const referrals = await getReferrals();
 
   return (
     <div className="space-y-6">
