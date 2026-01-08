@@ -56,16 +56,15 @@ function SubmitButton({ text, icon: Icon }: { text: string, icon?: React.Element
 }
 
 export default function ReferralDetailPage({ params }: { params: { id:string } }) {
-  const safeParams = use(Promise.resolve(params));
   const [referral, setReferral] = useState<Referral | null>(null);
 
   useEffect(() => {
     const fetchReferral = async () => {
-      const data = await db.getReferralById(safeParams.id);
+      const data = await db.getReferralById(params.id);
       if (data) setReferral(data as Referral);
     };
     fetchReferral();
-  }, [safeParams.id]);
+  }, [params.id]);
 
   const [optimisticReferral, setOptimisticReferral] = useOptimistic(
     referral,
@@ -88,8 +87,8 @@ export default function ReferralDetailPage({ params }: { params: { id:string } }
   );
 
   const { toast } = useToast();
-  const [noteState, noteFormAction, isNotePending] = useActionState(addInternalNote.bind(null, safeParams.id), { message: '', success: false });
-  const [statusState, statusFormAction, isStatusPending] = useActionState(updateReferralStatus.bind(null, safeParams.id), { message: '', success: false });
+  const [noteState, noteFormAction, isNotePending] = useActionState(addInternalNote.bind(null, params.id), { message: '', success: false });
+  const [statusState, statusFormAction, isStatusPending] = useActionState(updateReferralStatus.bind(null, params.id), { message: '', success: false });
 
   if (!optimisticReferral) {
     return (
