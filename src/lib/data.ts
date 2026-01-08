@@ -12,20 +12,26 @@ let db: Firestore;
 function getDb() {
     if (!db) {
         const apps = getApps();
-        // Use a different config for server that has the api key
-        const serverConfig = {
-            ...firebaseConfig,
-            apiKey: process.env.FIREBASE_API_KEY,
+        const serverAppName = 'server-app';
+        let firebaseApp: FirebaseApp;
+
+        const serverApp = apps.find(app => app.name === serverAppName);
+        if (serverApp) {
+            firebaseApp = serverApp;
+        } else {
+            const serverConfig = {
+                ...firebaseConfig,
+                apiKey: process.env.FIREBASE_API_KEY,
+            };
+            firebaseApp = initializeApp(serverConfig, serverAppName);
         }
-        const firebaseApp = apps.length > 0 ? apps[0] : initializeApp(serverConfig);
+        
         db = initializeFirestore(firebaseApp, {
           cacheSizeBytes: CACHE_SIZE_UNLIMITED
         });
     }
     return db;
 }
-
-const referralsCollection = 'referrals';
 
 // Converts Firestore Timestamps to JS Date objects recursively
 function convertTimestampsToDates(obj: any): any {
@@ -50,7 +56,7 @@ function convertTimestampsToDates(obj: any): any {
 
 export async function getReferrals(): Promise<Referral[]> {
     const firestore = getDb();
-    const q = query(collection(firestore, referralsCollection), orderBy('createdAt', 'desc'));
+    const q = query(collection(firestore, 'referrals'), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
     if (snapshot.empty) {
       return [];
@@ -61,7 +67,7 @@ export async function getReferrals(): Promise<Referral[]> {
 export async function getReferralById(id: string): Promise<Referral | undefined> {
     if (!id) return undefined;
     const firestore = getDb();
-    const docRef = doc(firestore, referralsCollection, id);
+    const docRef = doc(firestore, 'referrals', id);
     const docSnap = await getDoc(docRef);
 
     if (!docSnap.exists()) {
@@ -73,9 +79,8 @@ export async function getReferralById(id: string): Promise<Referral | undefined>
 
 export async function saveReferral(referral: Referral): Promise<Referral> {
     const firestore = getDb();
-    const docRef = doc(firestore, referralsCollection, referral.id);
+    const docRef = doc(firestore, 'referrals', referral.id);
     
-    // Convert Date objects to Timestamps for Firestore
     const dataToSave = {
         ...referral,
         createdAt: Timestamp.fromDate(new Date(referral.createdAt)),
@@ -97,7 +102,7 @@ export async function saveReferral(referral: Referral): Promise<Referral> {
 export async function findReferral(id: string, dob: string): Promise<Referral | undefined> {
     if (!id || !dob) return undefined;
     const firestore = getDb();
-    const docRef = doc(firestore, referralsCollection, id);
+    const docRef = doc(firestore, 'referrals', id);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists() && docSnap.data().patientDOB === dob) {
