@@ -22,8 +22,6 @@ import {
   File,
   User,
   HeartPulse,
-  CalendarDays,
-  Mail,
   History,
   MessageSquare,
   Sparkles,
@@ -34,10 +32,6 @@ import {
   ArrowLeft,
   Stethoscope,
   Building,
-  ClipboardList,
-  Info,
-  Briefcase,
-  UserPlus
 } from 'lucide-react';
 import StatusBadge from '@/components/referrals/status-badge';
 import { formatDate } from '@/lib/utils';
@@ -110,7 +104,7 @@ export default function ReferralDetailPage({ params }: { params: { id:string } }
     });
     const formData = new FormData();
     formData.append('status', status);
-    await statusFormAction(formData);
+    statusFormAction(formData); // No need to await
     toast({ title: "Status Updated", description: `Referral status changed to ${status.replace('_', ' ').toLowerCase()}.` });
   };
   

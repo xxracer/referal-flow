@@ -1,26 +1,20 @@
 'use client';
 
-import React, { useState, useRef, useActionState } from 'react';
+import React, { useState, useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
-import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, FileUp, Loader2, AlertCircle, Phone, Mail, Printer, UploadCloud } from 'lucide-react';
+import { Loader2, AlertCircle, Phone, Mail, Printer, UploadCloud } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { cn, formatDate } from '@/lib/utils';
 import SiteHeader from '@/components/layout/site-header';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { submitReferral, type FormState } from '@/lib/actions';
 import { referralSchema } from '@/lib/schemas';
-
-type FormData = z.infer<typeof referralSchema>;
 
 const services = [
     { id: 'skilledNursing', label: 'Skilled Nursing (SN)' },
@@ -36,22 +30,6 @@ const services = [
 export default function ReferPage() {
   const [formState, formAction] = useActionState(submitReferral, { message: '', success: false });
   const { pending } = useFormStatus();
-
-  const form = useForm<FormData>({
-    resolver: zodResolver(referralSchema),
-    defaultValues: {
-      organizationName: '',
-      contactName: '',
-      phone: '',
-      email: '',
-      patientFullName: '',
-      patientDOB: '',
-      patientZipCode: '',
-      primaryInsurance: '',
-      servicesNeeded: [],
-      documents: [],
-    },
-  });
 
   return (
     <div className="flex flex-col min-h-dvh">

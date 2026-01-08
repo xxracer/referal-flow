@@ -38,7 +38,7 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
     };
   }
   
-  const referralId = `TX-REF-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
+  const referralId = `TX-REF-2026-${Date.now().toString().slice(-6)}`;
   
   const uploadedDocuments: Document[] = [];
   const documentFiles = formData.getAll('documents') as File[];
@@ -76,21 +76,8 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
 
   // 3. (Optional) AI categorization based on uploaded documents
   let aiSummary: AISummary | undefined = undefined;
-  const docUrlsForCategorization = uploadedDocuments
-    .filter(doc => !doc.name.startsWith('Referral-Summary-')) // Exclude the summary PDF itself
-    .map(d => d.url);
+  // This part is kept for future-proofing but is not fully implemented for this step.
   
-  if (docUrlsForCategorization.length > 0) {
-      try {
-          // This part requires converting blob urls to data URIs if the AI expects that.
-          // For simplicity, we'll skip this heavy operation for now as categorizedReferral might need DataURIs.
-          // If the AI can read from a URL, this would work. Assuming it needs Data URI, we'd need a fetch & convert step.
-          // console.log("Skipping AI categorization as it requires converting blob URLs to Data URIs.");
-      } catch (e) {
-          console.error("AI categorization failed:", e);
-      }
-  }
-
   const now = new Date();
   const { organizationName, contactName, phone, email, patientFullName, patientDOB, patientZipCode, primaryInsurance, servicesNeeded } = validatedFields.data;
 
@@ -190,7 +177,12 @@ export async function addInternalNote(referralId: string, prevState: FormState, 
     return { message: 'Note added successfully.', success: true };
 }
 
-export async function updateReferralStatus(referralId: string, status: ReferralStatus): Promise<FormState> {
+export async function updateReferralStatus(referralId: string, prevState: FormState, formData: FormData): Promise<FormState> {
+    const status = formData.get('status') as ReferralStatus;
+    if (!status) {
+        return { message: 'Status is required.', success: false };
+    }
+    
     const referral = await db.getReferralById(referralId);
     if (!referral) {
         return { message: 'Referral not found.', success: false };
