@@ -16,45 +16,12 @@ export type FormState = {
   data?: any;
 };
 
-const MAX_FILE_SIZE = 500 * 1024; // 500KB per file limit for free tier storage
-const TOTAL_MAX_SIZE = 1024 * 1024; // 1MB total limit for the document
-const ACCEPTED_FILE_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
-
-// Helper to convert a file to a Base64 Data URI
+// This is a placeholder since we are no longer using a real backend for file storage
 const fileToDataURI = async (file: File): Promise<string> => {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     return `data:${file.type};base64,${buffer.toString('base64')}`;
 }
-
-const processFilesForFreeTier = async (files: File[]): Promise<{validDocs: Document[], dataURIs: string[], errorState: FormState | null, totalSize: number}> => {
-    const validDocs: Document[] = [];
-    const dataURIs: string[] = [];
-    let totalSize = 0;
-
-    for (const doc of files) {
-        if (doc.size > 0) {
-            if (doc.size > MAX_FILE_SIZE) {
-                return { validDocs: [], dataURIs: [], errorState: { message: `File "${doc.name}" exceeds the 500KB size limit.`, success: false }, totalSize: 0 };
-            }
-            if (!ACCEPTED_FILE_TYPES.includes(doc.type)) {
-                return { validDocs: [], dataURIs: [], errorState: { message: `File type for "${doc.name}" is not supported.`, success: false }, totalSize: 0 };
-            }
-            
-            const dataURI = await fileToDataURI(doc);
-            dataURIs.push(dataURI);
-            validDocs.push({ id: `doc-${Date.now()}-${Math.random()}`, name: doc.name, url: dataURI, size: doc.size });
-            totalSize += doc.size;
-        }
-    }
-
-    if (totalSize > TOTAL_MAX_SIZE) {
-        return { validDocs: [], dataURIs: [], errorState: { message: `Total file size exceeds the 1MB limit for a single referral.`, success: false }, totalSize: 0 };
-    }
-
-    return { validDocs, dataURIs, errorState: null, totalSize };
-};
-
 
 export async function submitReferral(prevState: FormState, formData: FormData): Promise<FormState> {
   const validatedFields = referralSchema.safeParse({
@@ -82,14 +49,18 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
   const referralDocs = formData.getAll('referralDocuments') as File[];
   const progressNotes = formData.getAll('progressNotes') as File[];
 
-  const { validDocs: validReferralDocs, dataURIs: referralDataURIs, errorState: referralError } = await processFilesForFreeTier(referralDocs);
-  if (referralError) return referralError;
+  const allFiles = [...referralDocs, ...progressNotes];
+  const documents: Document[] = [];
+  const dataURIs: string[] = [];
 
-  const { validDocs: validProgressNotes, dataURIs: progressNotesDataURIs, errorState: progressNotesError } = await processFilesForFreeTier(progressNotes);
-  if (progressNotesError) return progressNotesError;
+  for (const file of allFiles) {
+      if (file.size > 0) {
+          const dataUri = await fileToDataURI(file);
+          documents.push({ id: `doc-${Date.now()}-${Math.random()}`, name: file.name, url: dataUri, size: file.size });
+          dataURIs.push(dataUri);
+      }
+  }
 
-  const allValidDocuments = [...validReferralDocs, ...validProgressNotes];
-  const allDataURIs = [...referralDataURIs, ...progressNotesDataURIs];
 
   const now = new Date();
   
@@ -97,10 +68,10 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
 
   // Handle AI Categorization
   let aiSummary: AISummary | undefined = undefined;
-  if (allDataURIs.length > 0) {
+  if (dataURIs.length > 0) {
     try {
         aiSummary = await categorizeReferral({
-            documents: allDataURIs,
+            documents: dataURIs,
             patientName: patientFullName,
             referrerName: organizationName,
         });
@@ -139,7 +110,7 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
     status: 'RECEIVED',
     createdAt: now,
     updatedAt: now,
-    documents: allValidDocuments,
+    documents: documents,
     statusHistory: [{ status: 'RECEIVED', changedAt: now }],
     internalNotes: [],
     aiSummary: aiSummary,

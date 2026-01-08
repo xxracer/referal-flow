@@ -3,13 +3,12 @@ import { createContext, useContext } from 'react';
 import type { FirebaseApp } from 'firebase/app';
 import type { Auth } from 'firebase/auth';
 import type { Firestore } from 'firebase/firestore';
-import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { UserProvider } from './auth/use-user';
 
 export interface FirebaseContextValue {
   firebaseApp: FirebaseApp;
   auth: Auth;
-  firestore: Firestore;
+  firestore?: Firestore; // Firestore is now optional
 }
 
 const FirebaseContext = createContext<FirebaseContextValue | null>(null);
@@ -25,7 +24,6 @@ export function FirebaseProvider({
     <FirebaseContext.Provider value={value}>
         <UserProvider>
             {children}
-            <FirebaseErrorListener />
         </UserProvider>
     </FirebaseContext.Provider>
   );
@@ -40,5 +38,13 @@ export const useFirebase = () => {
 };
 
 export const useFirebaseApp = () => useFirebase().firebaseApp;
-export const useFirestore = () => useFirebase().firestore;
+export const useFirestore = () => {
+    // This will now throw an error if used, which is intended
+    // as we have removed Firestore from the app.
+    const firestore = useFirebase().firestore;
+    if (!firestore) {
+        throw new Error("Firestore has been removed from this application.");
+    }
+    return firestore;
+}
 export const useAuth = () => useFirebase().auth;
