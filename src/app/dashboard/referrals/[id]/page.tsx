@@ -43,8 +43,7 @@ import StatusBadge from '@/components/referrals/status-badge';
 import { formatDate } from '@/lib/utils';
 import type { Referral, ReferralStatus } from '@/lib/types';
 import { addInternalNote, updateReferralStatus } from '@/lib/actions';
-import { useActionState } from 'react';
-import { useFormStatus } from 'react-dom';
+import { useActionState, useFormStatus } from 'react-dom';
 import { useEffect, useState, useOptimistic, startTransition } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
@@ -113,8 +112,12 @@ export default function ReferralDetailPage({ params }: { params: { id:string } }
   };
   
   const handleDownload = (docUrl: string, docName: string) => {
-    // For Vercel Blob, a direct link is all that's needed.
-    window.open(docUrl, '_blank');
+    const link = document.createElement('a');
+    link.href = docUrl;
+    link.download = docName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const servicesMap = {
@@ -309,3 +312,5 @@ export default function ReferralDetailPage({ params }: { params: { id:string } }
     </div>
   );
 }
+
+    

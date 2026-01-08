@@ -14,6 +14,14 @@ export type FormState = {
   data?: any;
 };
 
+// Helper to convert file to Data URI
+async function fileToDataURI(file: File) {
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    return `data:${file.type};base64,${buffer.toString('base64')}`;
+}
+
+
 export async function submitReferral(prevState: FormState, formData: FormData): Promise<FormState> {
   const validatedFields = referralSchema.safeParse({
     organizationName: formData.get('organizationName'),
@@ -25,6 +33,7 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
     patientZipCode: formData.get('patientZipCode'),
     primaryInsurance: formData.get('primaryInsurance'),
     servicesNeeded: formData.getAll('servicesNeeded'),
+    documents: formData.getAll('documents'),
   });
   
   if (!validatedFields.success) {
@@ -34,16 +43,24 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
       success: false,
     };
   }
-
+  
   const referralId = `TX-REF-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
   
-  const documentUrls = formData.getAll('documentUrls') as string[];
-  const documents: Document[] = documentUrls.map(url => ({
-      id: url.split('/').pop() || `doc-${Date.now()}`,
-      name: url.split('/').pop() || 'Uploaded File',
-      url: url,
-      size: 0 // Size is not available here, can be fetched if needed
-  }));
+  const documents: Document[] = [];
+  const documentFiles = formData.getAll('documents') as File[];
+
+  for (const file of documentFiles) {
+    if (file && file.size > 0) {
+        const dataUri = await fileToDataURI(file);
+        documents.push({
+            id: `doc-${Date.now()}-${file.name}`,
+            name: file.name,
+            url: dataUri,
+            size: file.size,
+        });
+    }
+  }
+
 
   let aiSummary: AISummary | undefined = undefined;
   if (documents.length > 0) {
@@ -174,3 +191,5 @@ export async function updateReferralStatus(referralId: string, status: ReferralS
     revalidatePath('/dashboard');
     return { message: 'Status updated.', success: true };
 }
+
+    
