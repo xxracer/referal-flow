@@ -3,10 +3,23 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Helper function to check if a user is signed in
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Allow anyone to submit a new referral.
+    // Only authenticated users (staff) can read or update a referral.
     match /referrals/{referralId} {
-      allow read: if request.auth != null;
-      allow create: if true; // Allow anyone to create a referral
-      allow update: if request.auth != null; // Allow staff to update
+      allow read, update: if isSignedIn();
+      allow create: if true; // Public can create
+    }
+    
+    // Rules for files in Firebase Storage
+    // This allows authenticated users to read/write files in their designated folders.
+    // The path in Storage should correspond to the referral ID.
+    match /referrals/{referralId}/{allPaths=**} {
+      allow read, write: if isSignedIn();
     }
   }
 }

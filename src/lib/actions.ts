@@ -7,6 +7,8 @@ import { referralSchema, statusCheckSchema, noteSchema } from './schemas';
 import { db } from './data';
 import type { Referral, ReferralStatus, AISummary, Document } from './types';
 import { categorizeReferral } from '@/ai/flows/smart-categorization';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { initializeFirebase } from '@/firebase';
 
 // Type for state management with useFormState
 export type FormState = {
@@ -19,7 +21,10 @@ export type FormState = {
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_FILE_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
 
-const processFiles = async (files: File[]): Promise<{validDocs: Document[], dataURIs: string[], errorState: FormState | null}> => {
+const processAndUploadFiles = async (files: File[], referralId: string): Promise<{validDocs: Document[], dataURIs: string[], errorState: FormState | null}> => {
+    const { firebaseApp } = initializeFirebase();
+    const storage = getStorage(firebaseApp);
+    
     const validDocs: Document[] = [];
     const dataURIs: string[] = [];
 
@@ -33,9 +38,15 @@ const processFiles = async (files: File[]): Promise<{validDocs: Document[], data
             }
             const bytes = await doc.arrayBuffer();
             const buffer = Buffer.from(bytes);
+
+            // Upload to Firebase Storage
+            const storageRef = ref(storage, `referrals/${referralId}/${doc.name}`);
+            await uploadBytes(storageRef, buffer);
+            const downloadURL = await getDownloadURL(storageRef);
+
             const dataURI = `data:${doc.type};base64,${buffer.toString('base64')}`;
             dataURIs.push(dataURI);
-            validDocs.push({ id: `doc-${Date.now()}-${Math.random()}`, name: doc.name, url: '#', size: doc.size });
+            validDocs.push({ id: `doc-${Date.now()}-${Math.random()}`, name: doc.name, url: downloadURL, size: doc.size });
         }
     }
     return { validDocs, dataURIs, errorState: null };
@@ -63,19 +74,20 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
     };
   }
   
+  const referralId = `TX-REF-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
+
   const referralDocs = formData.getAll('referralDocuments') as File[];
   const progressNotes = formData.getAll('progressNotes') as File[];
 
-  const { validDocs: validReferralDocs, dataURIs: referralDataURIs, errorState: referralError } = await processFiles(referralDocs);
+  const { validDocs: validReferralDocs, dataURIs: referralDataURIs, errorState: referralError } = await processAndUploadFiles(referralDocs, referralId);
   if (referralError) return referralError;
 
-  const { validDocs: validProgressNotes, dataURIs: progressNotesDataURIs, errorState: progressNotesError } = await processFiles(progressNotes);
+  const { validDocs: validProgressNotes, dataURIs: progressNotesDataURIs, errorState: progressNotesError } = await processAndUploadFiles(progressNotes, referralId);
   if (progressNotesError) return progressNotesError;
 
   const allValidDocuments = [...validReferralDocs, ...validProgressNotes];
   const allDataURIs = [...referralDataURIs, ...progressNotesDataURIs];
 
-  const referralId = `TX-REF-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
   const now = new Date();
   
   const { organizationName, contactName, phone, email, patientFullName, patientDOB, patientZipCode, primaryInsurance, servicesNeeded } = validatedFields.data;
