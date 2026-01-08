@@ -2,18 +2,36 @@
 'use server';
 import { collection, doc, getDoc, getDocs, setDoc, query, orderBy, Timestamp, getFirestore } from 'firebase/firestore';
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
+import { getStorage } from 'firebase/storage';
 import { firebaseConfig } from '@/firebase/config';
 import type { Referral } from '@/lib/types';
 
+let app: FirebaseApp;
 let db: ReturnType<typeof getFirestore>;
+let storage: ReturnType<typeof getStorage>;
+
+function initializeFirebase() {
+    if (!getApps().length) {
+        app = initializeApp(firebaseConfig);
+    } else {
+        app = getApp();
+    }
+    db = getFirestore(app);
+    storage = getStorage(app);
+}
 
 function getDb() {
     if (!db) {
-        const apps = getApps();
-        const app = apps.length > 0 ? apps[0] : initializeApp(firebaseConfig);
-        db = getFirestore(app);
+        initializeFirebase();
     }
     return db;
+}
+
+export function getStorageInstance() {
+    if(!storage) {
+        initializeFirebase();
+    }
+    return storage;
 }
 
 
