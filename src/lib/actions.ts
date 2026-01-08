@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { referralSchema } from './schemas';
 import { db } from './data';
-import type { Referral, ReferralStatus, AISummary, Document } from './types';
+import type { Referral, ReferralStatus, Document } from './types';
 import { categorizeReferral } from '@/ai/flows/smart-categorization';
 import { generateReferralPdf } from '@/ai/flows/generate-referral-pdf';
 import { put } from '@vercel/blob';
@@ -17,16 +17,37 @@ export type FormState = {
   isSubmitting?: boolean;
 };
 
+async function uploadFiles(files: File[]): Promise<Document[]> {
+    const uploadedDocuments: Document[] = [];
+    for (const file of files) {
+        if (file && file.size > 0) {
+            const blob = await put(file.name, file, { access: 'public', addRandomSuffix: true });
+            uploadedDocuments.push({
+                id: blob.pathname,
+                name: file.name,
+                url: blob.url,
+                size: file.size,
+            });
+        }
+    }
+    return uploadedDocuments;
+}
+
 export async function submitReferral(prevState: FormState, formData: FormData): Promise<FormState> {
   const submissionState: FormState = { ...prevState, isSubmitting: true, message: 'Processing...', success: false };
   
   const formValues = Object.fromEntries(formData.entries());
   formValues.servicesNeeded = formData.getAll('servicesNeeded');
-  formValues.documents = formData.getAll('documents').filter(f => f instanceof File && f.size > 0);
+  
+  // Explicitly handle file inputs
+  formValues.referralDocuments = formData.getAll('referralDocuments').filter(f => f instanceof File && f.size > 0);
+  formValues.progressNotes = formData.getAll('progressNotes').filter(f => f instanceof File && f.size > 0);
+
 
   const validatedFields = referralSchema.safeParse(formValues);
   
   if (!validatedFields.success) {
+    console.log(validatedFields.error.flatten());
     return {
       message: 'Please correct the errors below.',
       errors: validatedFields.error.flatten().fieldErrors,
@@ -35,31 +56,24 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
     };
   }
   
-  const { documents, ...pdfData } = validatedFields.data;
+  const { referralDocuments, progressNotes, ...pdfData } = validatedFields.data;
   const referralId = `TX-REF-2026-${Date.now().toString().slice(-6)}`;
-  const uploadedDocuments: Document[] = [];
+  let allUploadedDocuments: Document[] = [];
 
   try {
-    // 1. Upload user-provided documents
-    if (documents) {
-      for (const file of documents) {
-        if (file) {
-          const blob = await put(file.name, file, { access: 'public', addRandomSuffix: false });
-          uploadedDocuments.push({
-              id: blob.pathname,
-              name: file.name,
-              url: blob.url,
-              size: file.size,
-          });
-        }
-      }
+    // 1. Upload user-provided documents from both fields
+    if (referralDocuments) {
+        allUploadedDocuments.push(...await uploadFiles(referralDocuments));
+    }
+    if (progressNotes) {
+        allUploadedDocuments.push(...await uploadFiles(progressNotes));
     }
 
     // 2. Generate PDF from form data using AI flow
     const pdfBytes = await generateReferralPdf(pdfData);
     const pdfName = `Referral-Summary-${referralId}.pdf`;
-    const pdfBlob = await put(pdfName, pdfBytes, { access: 'public', contentType: 'application/pdf' });
-    uploadedDocuments.push({
+    const pdfBlob = await put(pdfName, pdfBytes, { access: 'public', contentType: 'application/pdf', addRandomSuffix: true });
+    allUploadedDocuments.push({
       id: pdfBlob.pathname,
       name: pdfName,
       url: pdfBlob.url,
@@ -108,7 +122,7 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
     status: 'RECEIVED',
     createdAt: now,
     updatedAt: now,
-    documents: uploadedDocuments,
+    documents: allUploadedDocuments,
     statusHistory: [{ status: 'RECEIVED', changedAt: now }],
     internalNotes: [],
   };

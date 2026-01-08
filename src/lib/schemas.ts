@@ -1,12 +1,14 @@
 import { z } from 'zod';
 
 const MAX_TOTAL_SIZE = 5 * 1024 * 1024; // 5MB total
-const ACCEPTED_FILE_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
+const ACCEPTED_FILE_TYPES = ['image/jpeg', 'image/png', 'application/pdf', 'image/jpg'];
 
 const fileSchema = z
   .instanceof(File)
   .refine(file => ACCEPTED_FILE_TYPES.includes(file.type), ".jpg, .jpeg, .png and .pdf files are accepted.")
   .optional();
+  
+const fileArraySchema = z.array(fileSchema).optional();
 
 export const referralSchema = z.object({
   // Referrer Info
@@ -41,15 +43,15 @@ export const referralSchema = z.object({
   diagnosis: z.string().min(1, { message: "Patient Diagnosis is required." }),
   
   // Documents
-  documents: z.preprocess(
-    (val) => (Array.isArray(val) ? val : [val].filter(val => val instanceof File && val.size > 0)),
-    z.array(fileSchema)
-      .refine(files => {
-        const totalSize = files.reduce((acc, file) => acc + (file?.size || 0), 0);
-        return totalSize <= MAX_TOTAL_SIZE;
-      }, `Total file size must not exceed 5MB.`)
-      .optional()
-  ),
+  referralDocuments: fileArraySchema,
+  progressNotes: fileArraySchema,
+}).refine(data => {
+    const referralDocsSize = data.referralDocuments?.reduce((acc, file) => acc + (file?.size || 0), 0) || 0;
+    const progressNotesSize = data.progressNotes?.reduce((acc, file) => acc + (file?.size || 0), 0) || 0;
+    return (referralDocsSize + progressNotesSize) <= MAX_TOTAL_SIZE;
+}, {
+    message: `Total file size must not exceed 5MB.`,
+    path: ["referralDocuments"], // Assign error to one of the fields
 });
 
 
