@@ -1,4 +1,5 @@
 
+
 import {
   getFirestore,
   collection,
@@ -8,6 +9,7 @@ import {
   setDoc,
   query,
   orderBy,
+  Timestamp,
 } from 'firebase/firestore';
 import type { Referral } from '@/lib/types';
 import { initializeFirebase } from '@/firebase';
@@ -100,11 +102,27 @@ export const db = {
   saveReferral: async (referral: Referral): Promise<Referral> => {
     const db = getDb();
     const docRef = doc(db, 'referrals', referral.id);
-    setDoc(docRef, referral, { merge: true }).catch(async (serverError) => {
+    
+    // Convert all date objects to Firestore Timestamps before saving
+    const dataToSave = {
+        ...referral,
+        createdAt: Timestamp.fromDate(new Date(referral.createdAt)),
+        updatedAt: Timestamp.fromDate(new Date(referral.updatedAt)),
+        statusHistory: referral.statusHistory.map(h => ({
+            ...h,
+            changedAt: Timestamp.fromDate(new Date(h.changedAt)),
+        })),
+        internalNotes: referral.internalNotes.map(n => ({
+            ...n,
+            createdAt: Timestamp.fromDate(new Date(n.createdAt)),
+        })),
+    };
+    
+    setDoc(docRef, dataToSave, { merge: true }).catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
             path: docRef.path,
             operation: 'create', // or 'update' based on logic
-            requestResourceData: referral,
+            requestResourceData: dataToSave,
         });
         errorEmitter.emit('permission-error', permissionError);
     });
