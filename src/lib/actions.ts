@@ -20,18 +20,9 @@ export type FormState = {
 export async function submitReferral(prevState: FormState, formData: FormData): Promise<FormState> {
   const submissionState: FormState = { ...prevState, isSubmitting: true, message: 'Processing...', success: false };
   
-  const formValues = {
-    organizationName: formData.get('organizationName'),
-    contactName: formData.get('contactName'),
-    phone: formData.get('phone'),
-    email: formData.get('email'),
-    patientFullName: formData.get('patientFullName'),
-    patientDOB: formData.get('patientDOB'),
-    patientZipCode: formData.get('patientZipCode'),
-    primaryInsurance: formData.get('primaryInsurance'),
-    servicesNeeded: formData.getAll('servicesNeeded'),
-    documents: formData.getAll('documents').filter(f => f instanceof File && f.size > 0),
-  };
+  const formValues = Object.fromEntries(formData.entries());
+  formValues.servicesNeeded = formData.getAll('servicesNeeded');
+  formValues.documents = formData.getAll('documents').filter(f => f instanceof File && f.size > 0);
 
   const validatedFields = referralSchema.safeParse(formValues);
   
@@ -44,26 +35,28 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
     };
   }
   
+  const { documents, ...pdfData } = validatedFields.data;
   const referralId = `TX-REF-2026-${Date.now().toString().slice(-6)}`;
-  
   const uploadedDocuments: Document[] = [];
-  const documentFiles = validatedFields.data.documents || [];
-  const dataForPdf = { ...validatedFields.data, documents: undefined };
 
   try {
-    // 1. Upload user-provided documents, preserving original names
-    for (const file of documentFiles) {
-      const blob = await put(file.name, file, { access: 'public', addRandomSuffix: false });
-      uploadedDocuments.push({
-          id: blob.pathname,
-          name: file.name,
-          url: blob.url,
-          size: file.size,
-      });
+    // 1. Upload user-provided documents
+    if (documents) {
+      for (const file of documents) {
+        if (file) {
+          const blob = await put(file.name, file, { access: 'public', addRandomSuffix: false });
+          uploadedDocuments.push({
+              id: blob.pathname,
+              name: file.name,
+              url: blob.url,
+              size: file.size,
+          });
+        }
+      }
     }
 
     // 2. Generate PDF from form data using AI flow
-    const pdfBytes = await generateReferralPdf(dataForPdf);
+    const pdfBytes = await generateReferralPdf(pdfData);
     const pdfName = `Referral-Summary-${referralId}.pdf`;
     const pdfBlob = await put(pdfName, pdfBytes, { access: 'public', contentType: 'application/pdf' });
     uploadedDocuments.push({
@@ -77,13 +70,14 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
       console.error("Error during file upload or PDF generation:", e);
       return { message: 'An error occurred while handling files. Please try again.', success: false, isSubmitting: false };
   }
-
-  // 3. (Optional) AI categorization based on uploaded documents
-  let aiSummary: AISummary | undefined = undefined;
-  // This part is kept for future-proofing but is not fully implemented for this step.
   
   const now = new Date();
-  const { organizationName, contactName, phone, email, patientFullName, patientDOB, patientZipCode, primaryInsurance, servicesNeeded } = validatedFields.data;
+  const { 
+      organizationName, contactName, phone, email, 
+      patientFullName, patientDOB, patientAddress, patientZipCode, pcpName, pcpPhone, surgeryDate, covidStatus,
+      primaryInsurance, memberId, insuranceType, planName, planNumber, groupNumber,
+      servicesNeeded, diagnosis 
+  } = validatedFields.data;
 
   const newReferral: Referral = {
     id: referralId,
@@ -93,22 +87,30 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
     confirmationEmail: email || '',
     patientName: patientFullName,
     patientDOB,
-    patientContact: '',
-    patientInsurance: primaryInsurance, 
-    memberId: '',
+    patientAddress,
     patientZipCode,
+    pcpName,
+    pcpPhone,
+    surgeryDate,
+    covidStatus,
+    patientContact: '', // Not in form
+    patientInsurance: primaryInsurance, 
+    memberId,
+    insuranceType,
+    planName,
+    planNumber,
+    groupNumber,
     servicesNeeded,
+    diagnosis,
     examRequested: 'See Services Needed',
-    diagnosis: 'See attached documents',
-    providerNpi: '',
-    referrerFax: '',
+    providerNpi: '', // Not in form
+    referrerFax: '', // Not in form
     status: 'RECEIVED',
     createdAt: now,
     updatedAt: now,
     documents: uploadedDocuments,
     statusHistory: [{ status: 'RECEIVED', changedAt: now }],
     internalNotes: [],
-    aiSummary: aiSummary,
   };
 
   try {

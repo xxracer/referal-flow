@@ -16,6 +16,7 @@ import { submitReferral, type FormState } from '@/lib/actions';
 import { referralSchema } from '@/lib/schemas';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
+import { Textarea } from '@/components/ui/textarea';
 
 const services = [
     { id: 'skilledNursing', label: 'Skilled Nursing (SN)' },
@@ -42,7 +43,7 @@ function FileUploadArea({ formState }: { formState: FormState }) {
         const currentFiles = files.concat(newFiles);
         updateFileList(currentFiles);
 
-        // Clear the file input so the user can select the same file again
+        // This is a browser-only API, so we ensure it's only called on the client.
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
@@ -52,11 +53,10 @@ function FileUploadArea({ formState }: { formState: FormState }) {
       setFiles(fileList);
       const newTotalSize = fileList.reduce((acc, file) => acc + file.size, 0);
       setTotalSize(newTotalSize);
-
-      // This is a browser-only API, so we ensure it's only called on the client.
-      const dataTransfer = new DataTransfer();
-      fileList.forEach(file => dataTransfer.items.add(file));
-      if (fileInputRef.current) {
+      
+      if (typeof window !== 'undefined' && fileInputRef.current) {
+        const dataTransfer = new DataTransfer();
+        fileList.forEach(file => dataTransfer.items.add(file));
         fileInputRef.current.files = dataTransfer.files;
       }
     }
@@ -173,8 +173,7 @@ export default function ReferPage() {
               <CardHeader>
                 <CardTitle className="font-headline text-2xl">Referrer Information</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid md:grid-cols-2 gap-6">
+              <CardContent className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="organizationName">Organization / Facility Name *</Label>
                     <Input id="organizationName" name="organizationName" placeholder="e.g., Memorial Hermann" />
@@ -188,7 +187,6 @@ export default function ReferPage() {
                   <div className="space-y-2">
                     <Label htmlFor="phone">Phone Number *</Label>
                     <Input id="phone" name="phone" placeholder="e.g., (713) 555-1234" />
-                    <p className="text-xs text-muted-foreground">We use this only to confirm acceptance or request missing information.</p>
                     {formState.errors?.phone && <p className="text-sm text-destructive">{formState.errors.phone[0]}</p>}
                   </div>
                   <div className="space-y-2">
@@ -196,7 +194,6 @@ export default function ReferPage() {
                     <Input id="email" type="email" name="email" placeholder="e.g., case.manager@facility.com" />
                     {formState.errors?.email && <p className="text-sm text-destructive">{formState.errors.email[0]}</p>}
                   </div>
-                </div>
               </CardContent>
             </Card>
 
@@ -204,8 +201,7 @@ export default function ReferPage() {
               <CardHeader>
                 <CardTitle className="font-headline text-2xl">Patient Information</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
-                 <div className="grid md:grid-cols-2 gap-6">
+              <CardContent className="grid md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="patientFullName">Patient Full Name *</Label>
                       <Input id="patientFullName" name="patientFullName" placeholder="e.g., John Doe" />
@@ -216,16 +212,44 @@ export default function ReferPage() {
                         <Input id="patientDOB" name="patientDOB" placeholder="YYYY-MM-DD" />
                         {formState.errors?.patientDOB && <p className="text-sm text-destructive">{formState.errors.patientDOB[0]}</p>}
                     </div>
-                     <div className="space-y-2 md:col-span-2">
+                    <div className="space-y-2 md:col-span-2">
+                        <Label htmlFor="patientAddress">Patient Full Address *</Label>
+                        <Input id="patientAddress" name="patientAddress" placeholder="e.g., 123 Main St, Houston, TX" />
+                        {formState.errors?.patientAddress && <p className="text-sm text-destructive">{formState.errors.patientAddress[0]}</p>}
+                    </div>
+                     <div className="space-y-2">
                       <Label htmlFor="patientZipCode">Patient ZIP Code *</Label>
                       <Input id="patientZipCode" name="patientZipCode" placeholder="e.g., 77005" />
-                       {formState.errors?.patientZipCode ? (
-                        <p className="text-sm text-destructive">{formState.errors.patientZipCode[0]}</p>
-                      ) : (
-                        <p className="text-xs text-muted-foreground">We'll review service availability quickly. (This front-end version does not block submission based on ZIP.)</p>
-                      )}
+                       {formState.errors?.patientZipCode && <p className="text-sm text-destructive">{formState.errors.patientZipCode[0]}</p>}
                     </div>
-                 </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="pcpName">PCP Name</Label>
+                        <Input id="pcpName" name="pcpName" />
+                        {formState.errors?.pcpName && <p className="text-sm text-destructive">{formState.errors.pcpName[0]}</p>}
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="pcpPhone">PCP Phone</Label>
+                        <Input id="pcpPhone" name="pcpPhone" />
+                        {formState.errors?.pcpPhone && <p className="text-sm text-destructive">{formState.errors.pcpPhone[0]}</p>}
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="surgeryDate">Surgery Date</Label>
+                        <Input id="surgeryDate" name="surgeryDate" type="date" />
+                        {formState.errors?.surgeryDate && <p className="text-sm text-destructive">{formState.errors.surgeryDate[0]}</p>}
+                    </div>
+                     <div className="space-y-2 md:col-span-2">
+                        <Label>COVID? Yes/No</Label>
+                        <Select name="covidStatus">
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select status..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="No">No</SelectItem>
+                                <SelectItem value="Yes">Yes</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        {formState.errors?.covidStatus && <p className="text-sm text-destructive">{formState.errors.covidStatus[0]}</p>}
+                    </div>
               </CardContent>
             </Card>
 
@@ -233,48 +257,67 @@ export default function ReferPage() {
               <CardHeader>
                 <CardTitle className="font-headline text-2xl">Insurance Information</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="grid md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="primaryInsurance">Primary Insurance *</Label>
-                  <Select name="primaryInsurance">
-                    <SelectTrigger id="primaryInsurance">
-                      <SelectValue placeholder="Select..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="medicare">Medicare</SelectItem>
-                      <SelectItem value="medicaid">Medicaid</SelectItem>
-                      <SelectItem value="private">Private Insurance</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">If "Other", we'll ask for plan name and member ID.</p>
+                  <Label htmlFor="primaryInsurance">Primary Insurance Payer *</Label>
+                  <Input id="primaryInsurance" name="primaryInsurance" placeholder="e.g., United Healthcare" />
                   {formState.errors?.primaryInsurance && <p className="text-sm text-destructive">{formState.errors.primaryInsurance[0]}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="memberId">Member ID# *</Label>
+                  <Input id="memberId" name="memberId" />
+                  {formState.errors?.memberId && <p className="text-sm text-destructive">{formState.errors.memberId[0]}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="insuranceType">Type</Label>
+                  <Input id="insuranceType" name="insuranceType" placeholder="e.g., MA PPO" />
+                  {formState.errors?.insuranceType && <p className="text-sm text-destructive">{formState.errors.insuranceType[0]}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="planNumber">Plan Number#</Label>
+                  <Input id="planNumber" name="planNumber" />
+                  {formState.errors?.planNumber && <p className="text-sm text-destructive">{formState.errors.planNumber[0]}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="planName">Plan Name</Label>
+                  <Input id="planName" name="planName" placeholder="e.g., LPPO-AARP MEDICARE ADVANTAGE" />
+                  {formState.errors?.planName && <p className="text-sm text-destructive">{formState.errors.planName[0]}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="groupNumber">Group Number#</Label>
+                  <Input id="groupNumber" name="groupNumber" />
+                  {formState.errors?.groupNumber && <p className="text-sm text-destructive">{formState.errors.groupNumber[0]}</p>}
                 </div>
               </CardContent>
             </Card>
-
+            
             <Card>
-              <CardHeader>
-                <CardTitle className="font-headline text-2xl">Services Needed *</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {services.map((service) => (
-                      <div key={service.id} className="flex items-center space-x-2 p-3 bg-muted/50 rounded-md">
-                        <Checkbox
-                          id={service.id}
-                          name="servicesNeeded"
-                          value={service.id}
-                        />
-                        <Label htmlFor={service.id} className="font-normal cursor-pointer">{service.label}</Label>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="text-xs text-muted-foreground pt-2">Select at least one service. If unsure, choose "Skilled Nursing (SN)" and add details in Notes.</p>
-                  {formState.errors?.servicesNeeded && <p className="text-sm text-destructive">{formState.errors.servicesNeeded[0]}</p>}
-                </div>
-              </CardContent>
+                <CardHeader>
+                    <CardTitle className="font-headline text-2xl">Services & Diagnosis</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="space-y-2">
+                        <Label>Services Needed *</Label>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {services.map((service) => (
+                            <div key={service.id} className="flex items-center space-x-2 p-3 bg-muted/50 rounded-md">
+                                <Checkbox
+                                id={service.id}
+                                name="servicesNeeded"
+                                value={service.id}
+                                />
+                                <Label htmlFor={service.id} className="font-normal cursor-pointer">{service.label}</Label>
+                            </div>
+                            ))}
+                        </div>
+                        {formState.errors?.servicesNeeded && <p className="text-sm text-destructive">{formState.errors.servicesNeeded[0]}</p>}
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="diagnosis">Patient Diagnosis & Order Notes *</Label>
+                        <Textarea id="diagnosis" name="diagnosis" placeholder="e.g., Dx: Pain of right hip joint | Arthritis, lumbar spine" />
+                        {formState.errors?.diagnosis && <p className="text-sm text-destructive">{formState.errors.diagnosis[0]}</p>}
+                    </div>
+                </CardContent>
             </Card>
 
             <Card>

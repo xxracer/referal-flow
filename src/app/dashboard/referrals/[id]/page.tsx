@@ -32,6 +32,7 @@ import {
   ArrowLeft,
   Stethoscope,
   Building,
+  Download,
 } from 'lucide-react';
 import StatusBadge from '@/components/referrals/status-badge';
 import { formatDate } from '@/lib/utils';
@@ -149,19 +150,25 @@ export default function ReferralDetailPage({ params }: { params: { id:string } }
                             <CardContent className="space-y-2 text-sm">
                                 <p><strong>Name:</strong> {optimisticReferral.patientName}</p>
                                 <p><strong>DOB:</strong> {optimisticReferral.patientDOB}</p>
-                                <p><strong>Primary Insurance:</strong> {optimisticReferral.patientInsurance}</p>
-                                <p><strong>Member ID:</strong> {optimisticReferral.memberId || 'Not Provided'}</p>
+                                <p><strong>Address:</strong> {optimisticReferral.patientAddress}, {optimisticReferral.patientZipCode}</p>
+                                <p><strong>PCP:</strong> {optimisticReferral.pcpName || 'N/A'}</p>
+                                <p><strong>PCP Phone:</strong> {optimisticReferral.pcpPhone || 'N/A'}</p>
+                                <p><strong>COVID Status:</strong> {optimisticReferral.covidStatus || 'N/A'}</p>
                             </CardContent>
                         </Card>
                          <Card className="bg-muted/30">
                             <CardHeader>
-                                <CardTitle className="text-xl font-semibold flex items-center gap-2"><Building className="text-primary"/> Referrer Information</CardTitle>
+                                <CardTitle className="text-xl font-semibold flex items-center gap-2"><Building className="text-primary"/> Insurance & Referrer</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-2 text-sm">
-                                <p><strong>Organization:</strong> {optimisticReferral.referrerName}</p>
+                                <p><strong>Insurance Payer:</strong> {optimisticReferral.patientInsurance}</p>
+                                <p><strong>Member ID:</strong> {optimisticReferral.memberId}</p>
+                                <p><strong>Plan Name:</strong> {optimisticReferral.planName || 'N/A'}</p>
+                                <p><strong>Group #:</strong> {optimisticReferral.groupNumber || 'N/A'}</p>
+                                <Separator className="my-3" />
+                                <p><strong>Referred By:</strong> {optimisticReferral.referrerName}</p>
                                 <p><strong>Contact:</strong> {optimisticReferral.contactPerson}</p>
-                                <p><strong>Phone:</strong> {optimisticReferral.referrerContact}</p>
-                                <p><strong>Email:</strong> {optimisticReferral.confirmationEmail}</p>
+                                <p><strong>Contact Phone:</strong> {optimisticReferral.referrerContact}</p>
                             </CardContent>
                         </Card>
                     </div>
@@ -178,7 +185,7 @@ export default function ReferralDetailPage({ params }: { params: { id:string } }
                                 </ul>
                             </div>
                              <div>
-                                <h4 className="font-bold mb-2">Diagnosis:</h4>
+                                <h4 className="font-bold mb-2">Diagnosis & Order Notes:</h4>
                                 <p>{optimisticReferral.diagnosis}</p>
                             </div>
                         </div>
@@ -209,7 +216,10 @@ export default function ReferralDetailPage({ params }: { params: { id:string } }
                                     <li key={doc.id} className="flex items-center justify-between p-3 rounded-md bg-muted">
                                         <span className="font-medium truncate" title={doc.name}>{doc.name}</span>
                                         <Button variant="ghost" size="sm" asChild>
-                                           <a href={doc.url} target="_blank" rel="noopener noreferrer">Download</a>
+                                           <a href={doc.url} target="_blank" rel="noopener noreferrer">
+                                             <Download className="mr-2 h-4 w-4" />
+                                             Download
+                                           </a>
                                         </Button>
                                     </li>
                                 ))}

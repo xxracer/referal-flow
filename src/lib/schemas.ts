@@ -18,16 +18,27 @@ export const referralSchema = z.object({
   // Patient Info
   patientFullName: z.string().min(1, { message: "Patient Full Name is required." }),
   patientDOB: z.string().min(1, { message: "Patient's Date of Birth is required." }),
+  patientAddress: z.string().min(1, { message: "Patient's Full Address is required." }),
   patientZipCode: z.string().length(5, { message: "Enter a 5-digit ZIP code."}),
+  pcpName: z.string().optional(),
+  pcpPhone: z.string().optional(),
+  surgeryDate: z.string().optional(),
+  covidStatus: z.string().optional(),
 
   // Insurance Info
   primaryInsurance: z.string().min(1, { message: "Primary Insurance is required." }),
+  memberId: z.string().min(1, { message: "Member ID is required." }),
+  insuranceType: z.string().optional(),
+  planName: z.string().optional(),
+  planNumber: z.string().optional(),
+  groupNumber: z.string().optional(),
   
-  // Services Needed
+  // Services & Diagnosis
   servicesNeeded: z.preprocess(
     (val) => (Array.isArray(val) ? val : [val].filter(Boolean)),
     z.array(z.string()).min(1, { message: "Please select at least one service." })
   ),
+  diagnosis: z.string().min(1, { message: "Patient Diagnosis is required." }),
   
   // Documents
   documents: z.preprocess(
@@ -51,5 +62,3 @@ export const statusCheckSchema = z.object({
 export const noteSchema = z.object({
     note: z.string().min(1, { message: "Note cannot be empty." }),
 });
-
-    

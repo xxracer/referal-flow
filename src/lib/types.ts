@@ -39,9 +39,20 @@ export type Referral = {
   patientName: string;
   patientDOB: string; 
   patientContact: string;
+  patientAddress: string;
+  patientZipCode: string;
+  pcpName?: string;
+  pcpPhone?: string;
+  surgeryDate?: string;
+  covidStatus?: string;
+  
+  // Insurance Info
   patientInsurance: string;
   memberId: string;
-  patientZipCode: string;
+  insuranceType?: string;
+  planName?: string;
+  planNumber?: string;
+  groupNumber?: string;
   authorizationNumber?: string;
   
   // Exam & Service Info
