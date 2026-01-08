@@ -101,8 +101,7 @@ export default function StatusPage() {
                                     <AlertTitle className="text-green-800">Note Added</AlertTitle>
                                     <AlertDescription className="text-green-700">
                                         Your note has been successfully added to the referral.
-                                    </Aler
-tDescription>
+                                    </AlertDescription>
                                 </Alert>
                             )}
                         </CardHeader>
