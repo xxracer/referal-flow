@@ -1,9 +1,8 @@
 'use client';
 
-import { useActionState } from 'react';
-import { useFormStatus } from 'react-dom';
+import { useActionState, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +14,7 @@ import SiteHeader from '@/components/layout/site-header';
 import { checkStatus, type FormState } from '@/lib/actions';
 import { cn, formatDate } from '@/lib/utils';
 import StatusBadge from '@/components/referrals/status-badge';
+import { useFormStatus } from 'react-dom';
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -26,20 +26,21 @@ function SubmitButton() {
   );
 }
 
-export default function StatusPage() {
+function StatusPageComponent() {
   const searchParams = useSearchParams();
-  const initialReferralId = searchParams.get('id') || '';
+  const initialReferralId = useMemo(() => searchParams.get('id') || '', [searchParams]);
   const [referralId, setReferralId] = useState(initialReferralId);
   
   const initialState: FormState = { message: '', success: false };
   const [formState, dispatch] = useActionState(checkStatus, initialState);
 
   useEffect(() => {
-    // If there is an initial referralId from the URL params, we don't want to reset the form.
-    // We only reset if the form was successful and there was no initial ID.
+    setReferralId(initialReferralId);
+  }, [initialReferralId]);
+
+  useEffect(() => {
     if (formState.success && !initialReferralId) {
       setReferralId('');
-      // Clear patientDOB input if needed, but it's an uncontrolled component now.
       const dobInput = document.getElementById('patientDOB') as HTMLInputElement;
       if (dobInput) dobInput.value = '';
     }
@@ -123,4 +124,12 @@ export default function StatusPage() {
       </main>
     </div>
   );
+}
+
+export default function StatusPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <StatusPageComponent />
+        </Suspense>
+    );
 }
