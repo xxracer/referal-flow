@@ -2,26 +2,17 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { z } from 'zod';
-import { referralSchema, statusCheckSchema, noteSchema } from './schemas';
+import { referralSchema } from './schemas';
 import { db } from './data';
 import type { Referral, ReferralStatus, AISummary, Document } from './types';
 import { categorizeReferral } from '@/ai/flows/smart-categorization';
 
-// Type for state management with useFormState
 export type FormState = {
   message: string;
   errors?: Record<string, string[] | undefined>;
   success: boolean;
   data?: any;
 };
-
-// This is a placeholder since we are no longer using a real backend for file storage
-const fileToDataURI = async (file: File): Promise<string> => {
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    return `data:${file.type};base64,${buffer.toString('base64')}`;
-}
 
 export async function submitReferral(prevState: FormState, formData: FormData): Promise<FormState> {
   const validatedFields = referralSchema.safeParse({
@@ -35,7 +26,7 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
     primaryInsurance: formData.get('primaryInsurance'),
     servicesNeeded: formData.getAll('servicesNeeded'),
   });
-
+  
   if (!validatedFields.success) {
     return {
       message: 'Please correct the errors below.',
@@ -43,74 +34,54 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
       success: false,
     };
   }
-  
+
   const referralId = `TX-REF-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
+  
+  const documentUrls = formData.getAll('documentUrls') as string[];
+  const documents: Document[] = documentUrls.map(url => ({
+      id: url.split('/').pop() || `doc-${Date.now()}`,
+      name: url.split('/').pop() || 'Uploaded File',
+      url: url,
+      size: 0 // Size is not available here, can be fetched if needed
+  }));
 
-  const referralDocs = formData.getAll('referralDocuments') as File[];
-  const progressNotes = formData.getAll('progressNotes') as File[];
-
-  const allFiles = [...referralDocs, ...progressNotes];
-  const documents: Document[] = [];
-  const dataURIs: string[] = [];
-
-  for (const file of allFiles) {
-      if (file.size > 0) {
-          const dataUri = await fileToDataURI(file);
-          documents.push({ id: `doc-${Date.now()}-${Math.random()}`, name: file.name, url: dataUri, size: file.size });
-          dataURIs.push(dataUri);
+  let aiSummary: AISummary | undefined = undefined;
+  if (documents.length > 0) {
+      try {
+          aiSummary = await categorizeReferral({
+              documents: documents.map(d => d.url),
+              patientName: validatedFields.data.patientFullName,
+              referrerName: validatedFields.data.organizationName,
+          });
+      } catch (e) {
+          console.error("AI categorization failed:", e);
       }
   }
 
-
   const now = new Date();
-  
   const { organizationName, contactName, phone, email, patientFullName, patientDOB, patientZipCode, primaryInsurance, servicesNeeded } = validatedFields.data;
 
-  // Handle AI Categorization
-  let aiSummary: AISummary | undefined = undefined;
-  if (dataURIs.length > 0) {
-    try {
-        aiSummary = await categorizeReferral({
-            documents: dataURIs,
-            patientName: patientFullName,
-            referrerName: organizationName,
-        });
-    } catch (e) {
-        console.error("AI categorization failed:", e);
-        // Do not block submission if AI fails.
-    }
-  }
-  
   const newReferral: Referral = {
     id: referralId,
-    // Referrer
     referrerName: organizationName, 
     contactPerson: contactName, 
     referrerContact: phone, 
     confirmationEmail: email || '',
-    
-    // Patient
     patientName: patientFullName,
     patientDOB,
-    patientContact: '', // Not in form
+    patientContact: '',
     patientInsurance: primaryInsurance, 
-    memberId: '', // Will be collected later
-    patientZipCode: patientZipCode,
-    
-    // Exam/Services
+    memberId: '',
+    patientZipCode,
     servicesNeeded,
     examRequested: 'See Services Needed',
     diagnosis: 'See attached documents',
-    
-    // Legacy/default fields
     providerNpi: '',
     referrerFax: '',
-
-    // Meta
     status: 'RECEIVED',
     createdAt: now,
     updatedAt: now,
-    documents: documents,
+    documents,
     statusHistory: [{ status: 'RECEIVED', changedAt: now }],
     internalNotes: [],
     aiSummary: aiSummary,
@@ -126,29 +97,14 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
   redirect(`/refer/success/${referralId}`);
 }
 
-
 export async function checkStatus(prevState: FormState, formData: FormData): Promise<FormState> {
-    const validatedFields = statusCheckSchema.safeParse({
-        referralId: formData.get('referralId'),
-        patientDOB: formData.get('patientDOB'),
-        optionalNote: formData.get('optionalNote'),
-    });
-
-    if (!validatedFields.success) {
-        return {
-            message: 'Please correct the errors below.',
-            errors: validatedFields.error.flatten().fieldErrors,
-            success: false,
-        };
-    }
-
-    const { referralId, patientDOB, optionalNote } = validatedFields.data;
-    const referral = await db.findReferral(referralId, patientDOB);
+    const referral = await db.findReferral(formData.get('referralId') as string, formData.get('patientDOB') as string);
 
     if (!referral) {
         return { message: 'No matching referral found. Please check the ID and date of birth.', success: false };
     }
 
+    const optionalNote = formData.get('optionalNote') as string;
     let noteAdded = false;
     if (optionalNote) {
         const now = new Date();
@@ -161,7 +117,7 @@ export async function checkStatus(prevState: FormState, formData: FormData): Pro
         referral.updatedAt = now;
         await db.saveReferral(referral);
         noteAdded = true;
-        revalidatePath(`/dashboard/referrals/${referralId}`);
+        revalidatePath(`/dashboard/referrals/${referral.id}`);
     }
 
     return {
@@ -169,36 +125,28 @@ export async function checkStatus(prevState: FormState, formData: FormData): Pro
         success: true,
         data: {
             status: referral.status,
-            updatedAt: referral.updatedAt.toISOString(),
-            noteAdded: noteAdded,
+            updatedAt: referral.updatedAt,
+            noteAdded,
         }
     };
 }
 
-
 export async function addInternalNote(referralId: string, prevState: FormState, formData: FormData): Promise<FormState> {
-    const validatedFields = noteSchema.safeParse({
-        note: formData.get('note'),
-    });
-
-    if (!validatedFields.success) {
-        return {
-            message: 'Note cannot be empty.',
-            errors: validatedFields.error.flatten().fieldErrors,
-            success: false,
-        };
-    }
-
     const referral = await db.getReferralById(referralId);
     if (!referral) {
         return { message: 'Referral not found.', success: false };
     }
 
+    const note = formData.get('note') as string;
+    if (!note) {
+        return { message: 'Note cannot be empty.', success: false };
+    }
+
     const now = new Date();
     referral.internalNotes.push({
         id: `note-${Date.now()}`,
-        content: validatedFields.data.note,
-        author: 'Staff Member', // In a real app, this would come from session
+        content: note,
+        author: 'Staff Member',
         createdAt: now,
     });
     referral.updatedAt = now;

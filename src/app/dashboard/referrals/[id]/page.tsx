@@ -113,12 +113,8 @@ export default function ReferralDetailPage({ params }: { params: { id:string } }
   };
   
   const handleDownload = (docUrl: string, docName: string) => {
-    const link = document.createElement("a");
-    link.href = docUrl;
-    link.download = docName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // For Vercel Blob, a direct link is all that's needed.
+    window.open(docUrl, '_blank');
   };
 
   const servicesMap = {
@@ -160,7 +156,7 @@ export default function ReferralDetailPage({ params }: { params: { id:string } }
                             </CardHeader>
                             <CardContent className="space-y-2 text-sm">
                                 <p><strong>Name:</strong> {optimisticReferral.patientName}</p>
-                                <p><strong>DOB:</strong> {formatDate(optimisticReferral.patientDOB, 'yyyy-MM-dd')}</p>
+                                <p><strong>DOB:</strong> {optimisticReferral.patientDOB}</p>
                                 <p><strong>Primary Insurance:</strong> {optimisticReferral.patientInsurance}</p>
                                 <p><strong>Member ID:</strong> {optimisticReferral.memberId || 'Not Provided'}</p>
                             </CardContent>

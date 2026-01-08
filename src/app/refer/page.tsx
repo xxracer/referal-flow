@@ -1,8 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useActionState } from 'react';
-import { useFormStatus } from 'react-dom';
+import React, { useState, useRef } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -13,11 +11,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { FileUp, Loader2, AlertCircle, Phone, Mail, Printer } from 'lucide-react';
+import { FileUp, Loader2, AlertCircle, Phone, Mail, Printer, UploadCloud } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import SiteHeader from '@/components/layout/site-header';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import type { PutBlobResult } from '@vercel/blob';
 
 type FormData = z.infer<typeof referralSchema>;
 
@@ -32,22 +31,13 @@ const services = [
     { id: 'other', label: 'Other' },
 ] as const;
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending} size="lg" className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/90">
-      {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-      SUBMIT REFERRAL
-    </Button>
-  );
-}
-
 export default function ReferPage() {
-  const initialState: FormState = { message: '', success: false };
-  const [formState, dispatch] = useActionState(submitReferral, initialState);
-  const [referralFiles, setReferralFiles] = useState<File[]>([]);
-  const [progressNotesFiles, setProgressNotesFiles] = useState<File[]>([]);
+  const [formState, setFormState] = useState<FormState>({ message: '', success: false });
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
+  const inputFileRef = useRef<HTMLInputElement>(null);
+  const [blobList, setBlobList] = useState<PutBlobResult[]>([]);
+
   const form = useForm<FormData>({
     resolver: zodResolver(referralSchema),
     defaultValues: {
@@ -60,17 +50,53 @@ export default function ReferPage() {
       patientZipCode: '',
       primaryInsurance: '',
       servicesNeeded: [],
-      referralDocuments: undefined,
-      progressNotes: undefined,
+      documentUrls: [],
     },
   });
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, fileSetter: React.Dispatch<React.SetStateAction<File[]>>, fieldName: "referralDocuments" | "progressNotes") => {
-    if (event.target.files) {
-      const files = Array.from(event.target.files);
-      fileSetter(files);
-      form.setValue(fieldName, event.target.files);
+  const handleFormSubmit = async (data: FormData) => {
+    setIsSubmitting(true);
+
+    const uploadedDocumentUrls: string[] = [];
+    const files = inputFileRef.current?.files;
+
+    if (files && files.length > 0) {
+      for (const file of Array.from(files)) {
+        const response = await fetch(
+            `/api/upload?filename=${file.name}`,
+            {
+                method: 'POST',
+                body: file,
+            },
+        );
+
+        if (!response.ok) {
+            setFormState({ message: `Failed to upload ${file.name}.`, success: false });
+            setIsSubmitting(false);
+            return;
+        }
+
+        const newBlob = (await response.json()) as PutBlobResult;
+        uploadedDocumentUrls.push(newBlob.url);
+      }
     }
+    
+    const formData = new FormData();
+    Object.entries(data).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        value.forEach(v => formData.append(key, v));
+      } else if (value !== undefined) {
+        formData.append(key, String(value));
+      }
+    });
+
+    uploadedDocumentUrls.forEach(url => formData.append('documentUrls', url));
+    
+    // We are calling the server action directly, not via form.action
+    // This gives us more control over the submission process with file uploads.
+    await submitReferral(formState, formData);
+
+    setIsSubmitting(false);
   };
 
   return (
@@ -99,7 +125,7 @@ export default function ReferPage() {
                 </CardContent>
             </Card>
 
-          <form action={dispatch} className="space-y-8">
+          <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8">
             <Card>
               <CardHeader>
                 <CardTitle className="font-headline text-2xl">Referrer Information</CardTitle>
@@ -108,24 +134,24 @@ export default function ReferPage() {
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="organizationName">Organization / Facility Name *</Label>
-                    <Input id="organizationName" name="organizationName" placeholder="e.g., Memorial Hermann" />
-                    {formState.errors?.organizationName && <p className="text-sm text-destructive">{formState.errors.organizationName[0]}</p>}
+                    <Input id="organizationName" {...form.register('organizationName')} placeholder="e.g., Memorial Hermann" />
+                    {form.formState.errors?.organizationName && <p className="text-sm text-destructive">{form.formState.errors.organizationName.message}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="contactName">Contact Name *</Label>
-                    <Input id="contactName" name="contactName" placeholder="e.g., Maria Lopez" />
-                    {formState.errors?.contactName && <p className="text-sm text-destructive">{formState.errors.contactName[0]}</p>}
+                    <Input id="contactName" {...form.register('contactName')} placeholder="e.g., Maria Lopez" />
+                    {form.formState.errors?.contactName && <p className="text-sm text-destructive">{form.formState.errors.contactName.message}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="phone">Phone Number *</Label>
-                    <Input id="phone" name="phone" placeholder="e.g., (713) 555-1234" />
+                    <Input id="phone" {...form.register('phone')} placeholder="e.g., (713) 555-1234" />
                     <p className="text-xs text-muted-foreground">We use this only to confirm acceptance or request missing information.</p>
-                    {formState.errors?.phone && <p className="text-sm text-destructive">{formState.errors.phone[0]}</p>}
+                    {form.formState.errors?.phone && <p className="text-sm text-destructive">{form.formState.errors.phone.message}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="email">Email Address (optional)</Label>
-                    <Input id="email" name="email" type="email" placeholder="e.g., case.manager@facility.com" />
-                    {formState.errors?.email && <p className="text-sm text-destructive">{formState.errors.email[0]}</p>}
+                    <Input id="email" type="email" {...form.register('email')} placeholder="e.g., case.manager@facility.com" />
+                    {form.formState.errors?.email && <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>}
                   </div>
                 </div>
               </CardContent>
@@ -139,19 +165,19 @@ export default function ReferPage() {
                  <div className="grid md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="patientFullName">Patient Full Name *</Label>
-                      <Input id="patientFullName" name="patientFullName" placeholder="e.g., John Doe" />
-                      {formState.errors?.patientFullName && <p className="text-sm text-destructive">{formState.errors.patientFullName[0]}</p>}
+                      <Input id="patientFullName" {...form.register('patientFullName')} placeholder="e.g., John Doe" />
+                      {form.formState.errors?.patientFullName && <p className="text-sm text-destructive">{form.formState.errors.patientFullName.message}</p>}
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="patientDOB">Date of Birth *</Label>
-                        <Input id="patientDOB" name="patientDOB" placeholder="YYYY-MM-DD" />
-                        {formState.errors?.patientDOB && <p className="text-sm text-destructive">{formState.errors.patientDOB[0]}</p>}
+                        <Input id="patientDOB" {...form.register('patientDOB')} placeholder="YYYY-MM-DD" />
+                        {form.formState.errors?.patientDOB && <p className="text-sm text-destructive">{form.formState.errors.patientDOB.message}</p>}
                     </div>
                      <div className="space-y-2 md:col-span-2">
                       <Label htmlFor="patientZipCode">Patient ZIP Code *</Label>
-                      <Input id="patientZipCode" name="patientZipCode" placeholder="e.g., 77005" />
-                      {formState.errors?.patientZipCode ? (
-                        <p className="text-sm text-destructive">{formState.errors.patientZipCode[0]}</p>
+                      <Input id="patientZipCode" {...form.register('patientZipCode')} placeholder="e.g., 77005" />
+                       {form.formState.errors?.patientZipCode ? (
+                        <p className="text-sm text-destructive">{form.formState.errors.patientZipCode.message}</p>
                       ) : (
                         <p className="text-xs text-muted-foreground">We'll review service availability quickly. (This front-end version does not block submission based on ZIP.)</p>
                       )}
@@ -185,7 +211,7 @@ export default function ReferPage() {
                     )}
                   />
                   <p className="text-xs text-muted-foreground">If "Other", we'll ask for plan name and member ID.</p>
-                  {formState.errors?.primaryInsurance && <p className="text-sm text-destructive">{formState.errors.primaryInsurance[0]}</p>}
+                  {form.formState.errors?.primaryInsurance && <p className="text-sm text-destructive">{form.formState.errors.primaryInsurance.message}</p>}
                 </div>
               </CardContent>
             </Card>
@@ -223,61 +249,29 @@ export default function ReferPage() {
                     )}
                   />
                   <p className="text-xs text-muted-foreground pt-2">Select at least one service. If unsure, choose "Skilled Nursing (SN)" and add details in Notes.</p>
-                  {formState.errors?.servicesNeeded && <p className="text-sm text-destructive">{formState.errors.servicesNeeded[0]}</p>}
+                  {form.formState.errors?.servicesNeeded && <p className="text-sm text-destructive">{form.formState.errors.servicesNeeded.message}</p>}
                 </div>
               </CardContent>
             </Card>
 
             <Card>
                 <CardHeader>
-                    <CardTitle className="font-headline text-2xl">Supporting Documentation (optional)</CardTitle>
-                    <CardDescription>Uploading documents allows us to confirm insurance and respond faster. You can additionally fax it to 713-378-5289.</CardDescription>
+                    <CardTitle className="font-headline text-2xl">Supporting Documentation</CardTitle>
+                    <CardDescription>You can optionally upload relevant documents like insurance cards, medical history, or physician's orders.</CardDescription>
                 </CardHeader>
-                <CardContent className="grid md:grid-cols-2 gap-8">
-                    <div className="space-y-2">
-                        <Label htmlFor="referralDocuments">Upload Referral Documents (optional)</Label>
+                <CardContent>
+                     <div className="space-y-2">
+                        <Label htmlFor="file-upload">Upload Documents</Label>
                         <div className="flex items-center justify-center w-full">
-                            <label htmlFor="referralDocuments" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-card hover:bg-muted">
+                            <label htmlFor="file-upload" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-card hover:bg-muted">
                                 <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                    <FileUp className="w-8 h-8 mb-3 text-muted-foreground" />
-                                    <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span></p>
-                                    <p className="text-xs text-muted-foreground">.pdf, .jpeg, .png</p>
+                                    <UploadCloud className="w-8 h-8 mb-3 text-muted-foreground" />
+                                    <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload files</span></p>
+                                    <p className="text-xs text-muted-foreground">PDF, JPG, PNG up to 5MB each</p>
                                 </div>
-                                <Input id="referralDocuments" name="referralDocuments" type="file" className="hidden" multiple onChange={(e) => handleFileChange(e, setReferralFiles, 'referralDocuments')} />
+                                <Input id="file-upload" ref={inputFileRef} type="file" className="hidden" multiple />
                             </label>
                         </div>
-                        {referralFiles.length > 0 && (
-                            <div className="pt-2">
-                                <p className="text-sm font-medium">Selected files:</p>
-                                <ul className="list-disc list-inside text-sm text-muted-foreground">
-                                    {referralFiles.map(file => <li key={file.name}>{file.name} ({(file.size / 1024 / 1024).toFixed(2)}MB)</li>)}
-                                </ul>
-                            </div>
-                        )}
-                        {formState.errors?.referralDocuments && <p className="text-sm text-destructive">{formState.errors.referralDocuments[0]}</p>}
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label htmlFor="progressNotes">Upload Progress Notes (optional)</Label>
-                        <div className="flex items-center justify-center w-full">
-                            <label htmlFor="progressNotes" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-card hover:bg-muted">
-                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                    <FileUp className="w-8 h-8 mb-3 text-muted-foreground" />
-                                    <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span></p>
-                                    <p className="text-xs text-muted-foreground">.pdf, .jpeg, .png</p>
-                                </div>
-                                <Input id="progressNotes" name="progressNotes" type="file" className="hidden" multiple onChange={(e) => handleFileChange(e, setProgressNotesFiles, 'progressNotes')} />
-                            </label>
-                        </div>
-                        {progressNotesFiles.length > 0 && (
-                            <div className="pt-2">
-                                <p className="text-sm font-medium">Selected files:</p>
-                                <ul className="list-disc list-inside text-sm text-muted-foreground">
-                                    {progressNotesFiles.map(file => <li key={file.name}>{file.name} ({(file.size / 1024 / 1024).toFixed(2)}MB)</li>)}
-                                </ul>
-                            </div>
-                        )}
-                        {formState.errors?.progressNotes && <p className="text-sm text-destructive">{formState.errors.progressNotes[0]}</p>}
                     </div>
                 </CardContent>
             </Card>
@@ -289,7 +283,10 @@ export default function ReferPage() {
                 </Alert>
             )}
             
-            <SubmitButton />
+            <Button type="submit" disabled={isSubmitting} size="lg" className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/90">
+                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                SUBMIT REFERRAL
+            </Button>
           </form>
         </div>
       </main>

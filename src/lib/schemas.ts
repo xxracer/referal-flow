@@ -1,17 +1,16 @@
 import { z } from 'zod';
 
-const MAX_FILE_SIZE = 500 * 1024; // 500KB
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_FILE_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
 
-const fileListSchema = z
-  .custom<FileList>()
-  .refine(files => files === undefined || files === null || files.length === 0 || Array.from(files).every(file => file.size <= MAX_FILE_SIZE), `Max file size is 500KB per file.`)
+// This schema is now for client-side validation only before uploading
+const fileSchema = z
+  .instanceof(File)
+  .refine(file => file.size <= MAX_FILE_SIZE, `Max file size is 5MB per file.`)
   .refine(
-    files => files === undefined || files === null || files.length === 0 || Array.from(files).every(file => ACCEPTED_FILE_TYPES.includes(file.type)),
+    file => ACCEPTED_FILE_TYPES.includes(file.type),
     "Only .pdf, .jpeg, and .png files are accepted."
-  )
-  .optional();
-
+  );
 
 export const referralSchema = z.object({
   // Referrer Info
@@ -31,9 +30,8 @@ export const referralSchema = z.object({
   // Services Needed
   servicesNeeded: z.array(z.string()).min(1, { message: "Please select at least one service." }),
 
-  // Documents
-  referralDocuments: fileListSchema,
-  progressNotes: fileListSchema,
+  // Document URLs will be passed, not files
+  documentUrls: z.array(z.string()).optional(),
 });
 
 
