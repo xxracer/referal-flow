@@ -34,8 +34,7 @@ function FileUploadArea({ formState }: { formState: FormState }) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const MAX_SIZE_MB = 5;
     const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
-    const dataTransfer = new DataTransfer();
-
+    
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const newFiles = Array.from(event.target.files || []);
         if (newFiles.length === 0) return;
@@ -43,6 +42,7 @@ function FileUploadArea({ formState }: { formState: FormState }) {
         const currentFiles = files.concat(newFiles);
         updateFileList(currentFiles);
 
+        // Clear the file input so the user can select the same file again
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
@@ -53,8 +53,8 @@ function FileUploadArea({ formState }: { formState: FormState }) {
       const newTotalSize = fileList.reduce((acc, file) => acc + file.size, 0);
       setTotalSize(newTotalSize);
 
-      // Update the native file input for form submission
-      dataTransfer.clear();
+      // This is a browser-only API, so we ensure it's only called on the client.
+      const dataTransfer = new DataTransfer();
       fileList.forEach(file => dataTransfer.items.add(file));
       if (fileInputRef.current) {
         fileInputRef.current.files = dataTransfer.files;
@@ -71,19 +71,29 @@ function FileUploadArea({ formState }: { formState: FormState }) {
 
     return (
         <div className="space-y-4">
-             <Input id="documents" name="documents" type="file" multiple ref={fileInputRef} onChange={handleFileChange} className="hidden" />
+            <Input id="documents" name="documents" type="file" multiple ref={fileInputRef} onChange={handleFileChange} className="hidden" />
+
+            <div className='space-y-2'>
+                <Label>Referral Documents</Label>
+                <Button type="button" variant="outline" className="w-full" onClick={() => fileInputRef.current?.click()}>
+                    <UploadCloud className="mr-2" />
+                    Choose Files
+                </Button>
+            </div>
+            <div className='space-y-2'>
+                <Label>Progress Notes</Label>
+                <Button type="button" variant="outline" className="w-full" onClick={() => fileInputRef.current?.click()}>
+                    <UploadCloud className="mr-2" />
+                    Choose Files
+                </Button>
+            </div>
 
              <p className="text-sm text-muted-foreground">
                 Uploading documents allows us to confirm insurance and respond faster. You can additionally fax it to 713-378-5289. Max total size: {MAX_SIZE_MB}MB.
              </p>
 
-            <Button type="button" variant="outline" className="w-full" onClick={() => fileInputRef.current?.click()}>
-                <UploadCloud className="mr-2" />
-                Choose Referral Documents & Progress Notes
-            </Button>
-
             {fileErrors && (
-                <p className="text-sm text-destructive">{fileErrors[0]}</p>
+                <p className="text-sm text-destructive">{Array.isArray(fileErrors) ? fileErrors.join(', ') : fileErrors}</p>
             )}
 
             {files.length > 0 && (
