@@ -12,24 +12,24 @@ const fileArraySchema = z.array(fileSchema).optional();
 
 export const referralSchema = z.object({
   // Referrer Info
-  organizationName: z.string().min(1, { message: "Organization/Facility Name is required." }),
-  contactName: z.string().min(1, { message: "Contact Name is required." }),
-  phone: z.string().min(1, { message: "Phone Number is required." }),
+  organizationName: z.string().optional(),
+  contactName: z.string().optional(),
+  phone: z.string().optional(),
   email: z.string().email({ message: "Invalid email address." }).optional().or(z.literal('')),
 
   // Patient Info
-  patientFullName: z.string().min(1, { message: "Patient Full Name is required." }),
-  patientDOB: z.string().min(1, { message: "Patient's Date of Birth is required." }),
-  patientAddress: z.string().min(1, { message: "Patient's Full Address is required." }),
-  patientZipCode: z.string().length(5, { message: "Enter a 5-digit ZIP code."}),
+  patientFullName: z.string().optional(),
+  patientDOB: z.string().optional(),
+  patientAddress: z.string().optional(),
+  patientZipCode: z.string().optional(),
   pcpName: z.string().optional(),
   pcpPhone: z.string().optional(),
   surgeryDate: z.string().optional(),
   covidStatus: z.string().optional(),
 
   // Insurance Info
-  primaryInsurance: z.string().min(1, { message: "Primary Insurance is required." }),
-  memberId: z.string().min(1, { message: "Member ID is required." }),
+  primaryInsurance: z.string().optional(),
+  memberId: z.string().optional(),
   insuranceType: z.string().optional(),
   planName: z.string().optional(),
   planNumber: z.string().optional(),
@@ -38,9 +38,9 @@ export const referralSchema = z.object({
   // Services & Diagnosis
   servicesNeeded: z.preprocess(
     (val) => (Array.isArray(val) ? val : [val].filter(Boolean)),
-    z.array(z.string()).min(1, { message: "Please select at least one service." })
+    z.array(z.string()).optional()
   ),
-  diagnosis: z.string().min(1, { message: "Patient Diagnosis is required." }),
+  diagnosis: z.string().optional(),
   
   // Documents
   referralDocuments: fileArraySchema,

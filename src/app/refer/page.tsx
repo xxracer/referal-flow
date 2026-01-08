@@ -134,17 +134,17 @@ export default function ReferPage() {
               <CardHeader><CardTitle className="font-headline text-2xl">Referrer Information</CardTitle></CardHeader>
               <CardContent className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label htmlFor="organizationName">Organization / Facility Name *</Label>
+                    <Label htmlFor="organizationName">Organization / Facility Name</Label>
                     <Input id="organizationName" name="organizationName" placeholder="e.g., Memorial Hermann" />
                     {formState.errors?.organizationName && <p className="text-sm text-destructive">{formState.errors.organizationName[0]}</p>}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="contactName">Contact Name *</Label>
+                    <Label htmlFor="contactName">Contact Name</Label>
                     <Input id="contactName" name="contactName" placeholder="e.g., Maria Lopez" />
                     {formState.errors?.contactName && <p className="text-sm text-destructive">{formState.errors.contactName[0]}</p>}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number *</Label>
+                    <Label htmlFor="phone">Phone Number</Label>
                     <Input id="phone" name="phone" placeholder="e.g., (713) 555-1234" />
                     {formState.errors?.phone && <p className="text-sm text-destructive">{formState.errors.phone[0]}</p>}
                   </div>
@@ -160,22 +160,22 @@ export default function ReferPage() {
               <CardHeader><CardTitle className="font-headline text-2xl">Patient Information</CardTitle></CardHeader>
               <CardContent className="grid md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="patientFullName">Patient Full Name *</Label>
+                      <Label htmlFor="patientFullName">Patient Full Name</Label>
                       <Input id="patientFullName" name="patientFullName" placeholder="e.g., John Doe" />
                       {formState.errors?.patientFullName && <p className="text-sm text-destructive">{formState.errors.patientFullName[0]}</p>}
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="patientDOB">Date of Birth *</Label>
+                        <Label htmlFor="patientDOB">Date of Birth</Label>
                         <Input id="patientDOB" name="patientDOB" placeholder="YYYY-MM-DD" />
                         {formState.errors?.patientDOB && <p className="text-sm text-destructive">{formState.errors.patientDOB[0]}</p>}
                     </div>
                     <div className="space-y-2 md:col-span-2">
-                        <Label htmlFor="patientAddress">Patient Full Address *</Label>
+                        <Label htmlFor="patientAddress">Patient Full Address</Label>
                         <Input id="patientAddress" name="patientAddress" placeholder="e.g., 123 Main St, Houston, TX" />
                         {formState.errors?.patientAddress && <p className="text-sm text-destructive">{formState.errors.patientAddress[0]}</p>}
                     </div>
                      <div className="space-y-2">
-                      <Label htmlFor="patientZipCode">Patient ZIP Code *</Label>
+                      <Label htmlFor="patientZipCode">Patient ZIP Code</Label>
                       <Input id="patientZipCode" name="patientZipCode" placeholder="e.g., 77005" />
                        {formState.errors?.patientZipCode && <p className="text-sm text-destructive">{formState.errors.patientZipCode[0]}</p>}
                     </div>
@@ -212,7 +212,7 @@ export default function ReferPage() {
               <CardHeader><CardTitle className="font-headline text-2xl">Insurance Information</CardTitle></CardHeader>
               <CardContent className="grid md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                    <Label htmlFor="primaryInsurance">Primary Insurance Payer *</Label>
+                    <Label htmlFor="primaryInsurance">Primary Insurance Payer</Label>
                     <Select name="primaryInsurance">
                         <SelectTrigger id="primaryInsurance"><SelectValue placeholder="Select..." /></SelectTrigger>
                         <SelectContent>
@@ -222,7 +222,7 @@ export default function ReferPage() {
                     {formState.errors?.primaryInsurance && <p className="text-sm text-destructive">{formState.errors.primaryInsurance[0]}</p>}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="memberId">Member ID# *</Label>
+                  <Label htmlFor="memberId">Member ID#</Label>
                   <Input id="memberId" name="memberId" />
                   {formState.errors?.memberId && <p className="text-sm text-destructive">{formState.errors.memberId[0]}</p>}
                 </div>
@@ -237,7 +237,7 @@ export default function ReferPage() {
                 <CardHeader><CardTitle className="font-headline text-2xl">Services & Diagnosis</CardTitle></CardHeader>
                 <CardContent className="space-y-6">
                     <div className="space-y-2">
-                        <Label>Services Needed *</Label>
+                        <Label>Services Needed</Label>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             {services.map((service) => (
                             <div key={service.id} className="flex items-center space-x-2 p-3 bg-muted/50 rounded-md">
@@ -249,7 +249,7 @@ export default function ReferPage() {
                         {formState.errors?.servicesNeeded && <p className="text-sm text-destructive">{formState.errors.servicesNeeded[0]}</p>}
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="diagnosis">Patient Diagnosis & Order Notes *</Label>
+                        <Label htmlFor="diagnosis">Patient Diagnosis & Order Notes</Label>
                         <Textarea id="diagnosis" name="diagnosis" placeholder="e.g., Dx: Pain of right hip joint | Arthritis, lumbar spine" />
                         {formState.errors?.diagnosis && <p className="text-sm text-destructive">{formState.errors.diagnosis[0]}</p>}
                     </div>
