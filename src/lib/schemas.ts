@@ -1,11 +1,11 @@
 import { z } from 'zod';
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_FILE_SIZE = 500 * 1024; // 500KB
 const ACCEPTED_FILE_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
 
 const fileListSchema = z
   .custom<FileList>()
-  .refine(files => files === undefined || files === null || files.length === 0 || Array.from(files).every(file => file.size <= MAX_FILE_SIZE), `Max file size is 5MB.`)
+  .refine(files => files === undefined || files === null || files.length === 0 || Array.from(files).every(file => file.size <= MAX_FILE_SIZE), `Max file size is 500KB per file.`)
   .refine(
     files => files === undefined || files === null || files.length === 0 || Array.from(files).every(file => ACCEPTED_FILE_TYPES.includes(file.type)),
     "Only .pdf, .jpeg, and .png files are accepted."

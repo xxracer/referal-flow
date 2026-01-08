@@ -7,8 +7,6 @@ import { referralSchema, statusCheckSchema, noteSchema } from './schemas';
 import { db } from './data';
 import type { Referral, ReferralStatus, AISummary, Document } from './types';
 import { categorizeReferral } from '@/ai/flows/smart-categorization';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { initializeFirebase } from '@/firebase';
 
 // Type for state management with useFormState
 export type FormState = {
@@ -18,38 +16,43 @@ export type FormState = {
   data?: any;
 };
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_FILE_SIZE = 500 * 1024; // 500KB per file limit for free tier storage
+const TOTAL_MAX_SIZE = 1024 * 1024; // 1MB total limit for the document
 const ACCEPTED_FILE_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
 
-const processAndUploadFiles = async (files: File[], referralId: string): Promise<{validDocs: Document[], dataURIs: string[], errorState: FormState | null}> => {
-    const { firebaseApp } = initializeFirebase();
-    const storage = getStorage(firebaseApp);
-    
+// Helper to convert a file to a Base64 Data URI
+const fileToDataURI = async (file: File): Promise<string> => {
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    return `data:${file.type};base64,${buffer.toString('base64')}`;
+}
+
+const processFilesForFreeTier = async (files: File[]): Promise<{validDocs: Document[], dataURIs: string[], errorState: FormState | null, totalSize: number}> => {
     const validDocs: Document[] = [];
     const dataURIs: string[] = [];
+    let totalSize = 0;
 
     for (const doc of files) {
         if (doc.size > 0) {
             if (doc.size > MAX_FILE_SIZE) {
-                return { validDocs: [], dataURIs: [], errorState: { message: `File "${doc.name}" exceeds the 5MB size limit.`, success: false }};
+                return { validDocs: [], dataURIs: [], errorState: { message: `File "${doc.name}" exceeds the 500KB size limit.`, success: false }, totalSize: 0 };
             }
             if (!ACCEPTED_FILE_TYPES.includes(doc.type)) {
-                return { validDocs: [], dataURIs: [], errorState: { message: `File type for "${doc.name}" is not supported.`, success: false }};
+                return { validDocs: [], dataURIs: [], errorState: { message: `File type for "${doc.name}" is not supported.`, success: false }, totalSize: 0 };
             }
-            const bytes = await doc.arrayBuffer();
-            const buffer = Buffer.from(bytes);
-
-            // Upload to Firebase Storage
-            const storageRef = ref(storage, `referrals/${referralId}/${doc.name}`);
-            await uploadBytes(storageRef, buffer);
-            const downloadURL = await getDownloadURL(storageRef);
-
-            const dataURI = `data:${doc.type};base64,${buffer.toString('base64')}`;
+            
+            const dataURI = await fileToDataURI(doc);
             dataURIs.push(dataURI);
-            validDocs.push({ id: `doc-${Date.now()}-${Math.random()}`, name: doc.name, url: downloadURL, size: doc.size });
+            validDocs.push({ id: `doc-${Date.now()}-${Math.random()}`, name: doc.name, url: dataURI, size: doc.size });
+            totalSize += doc.size;
         }
     }
-    return { validDocs, dataURIs, errorState: null };
+
+    if (totalSize > TOTAL_MAX_SIZE) {
+        return { validDocs: [], dataURIs: [], errorState: { message: `Total file size exceeds the 1MB limit for a single referral.`, success: false }, totalSize: 0 };
+    }
+
+    return { validDocs, dataURIs, errorState: null, totalSize };
 };
 
 
@@ -79,10 +82,10 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
   const referralDocs = formData.getAll('referralDocuments') as File[];
   const progressNotes = formData.getAll('progressNotes') as File[];
 
-  const { validDocs: validReferralDocs, dataURIs: referralDataURIs, errorState: referralError } = await processAndUploadFiles(referralDocs, referralId);
+  const { validDocs: validReferralDocs, dataURIs: referralDataURIs, errorState: referralError } = await processFilesForFreeTier(referralDocs);
   if (referralError) return referralError;
 
-  const { validDocs: validProgressNotes, dataURIs: progressNotesDataURIs, errorState: progressNotesError } = await processAndUploadFiles(progressNotes, referralId);
+  const { validDocs: validProgressNotes, dataURIs: progressNotesDataURIs, errorState: progressNotesError } = await processFilesForFreeTier(progressNotes);
   if (progressNotesError) return progressNotesError;
 
   const allValidDocuments = [...validReferralDocs, ...validProgressNotes];

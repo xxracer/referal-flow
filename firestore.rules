@@ -14,12 +14,5 @@ service cloud.firestore {
       allow read, update: if isSignedIn();
       allow create: if true; // Public can create
     }
-    
-    // Rules for files in Firebase Storage
-    // This allows authenticated users to read/write files in their designated folders.
-    // The path in Storage should correspond to the referral ID.
-    match /referrals/{referralId}/{allPaths=**} {
-      allow read, write: if isSignedIn();
-    }
   }
 }
