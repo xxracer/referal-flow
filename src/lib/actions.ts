@@ -14,9 +14,13 @@ export type FormState = {
   errors?: Record<string, string[] | undefined>;
   success: boolean;
   data?: any;
+  isSubmitting?: boolean;
 };
 
 export async function submitReferral(prevState: FormState, formData: FormData): Promise<FormState> {
+  // Set isSubmitting to true immediately
+  const submissionState: FormState = { ...prevState, isSubmitting: true, message: 'Processing...', success: false };
+  
   const validatedFields = referralSchema.safeParse({
     organizationName: formData.get('organizationName'),
     contactName: formData.get('contactName'),
@@ -35,6 +39,7 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
       message: 'Please correct the errors below.',
       errors: validatedFields.error.flatten().fieldErrors,
       success: false,
+      isSubmitting: false,
     };
   }
   
@@ -42,13 +47,13 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
   
   const uploadedDocuments: Document[] = [];
   const documentFiles = formData.getAll('documents') as File[];
-  const dataForPdf = validatedFields.data;
+  const dataForPdf = { ...validatedFields.data, documents: undefined };
 
   try {
-    // 1. Upload user-provided documents
+    // 1. Upload user-provided documents, preserving original names
     for (const file of documentFiles) {
       if (file && file.size > 0) {
-        const blob = await put(file.name, file, { access: 'public' });
+        const blob = await put(file.name, file, { access: 'public', addRandomSuffix: false });
         uploadedDocuments.push({
             id: blob.pathname,
             name: file.name,
@@ -71,7 +76,7 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
 
   } catch (e) {
       console.error("Error during file upload or PDF generation:", e);
-      return { message: 'An error occurred while handling files. Please try again.', success: false };
+      return { message: 'An error occurred while handling files. Please try again.', success: false, isSubmitting: false };
   }
 
   // 3. (Optional) AI categorization based on uploaded documents
@@ -101,7 +106,7 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
     status: 'RECEIVED',
     createdAt: now,
     updatedAt: now,
-    documents: uploadedDocuments, // Use the URLs from Vercel Blob
+    documents: uploadedDocuments,
     statusHistory: [{ status: 'RECEIVED', changedAt: now }],
     internalNotes: [],
     aiSummary: aiSummary,
@@ -110,7 +115,7 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
   try {
     await db.saveReferral(newReferral);
   } catch (e) {
-    return { message: 'Database error: Failed to save referral.', success: false };
+    return { message: 'Database error: Failed to save referral.', success: false, isSubmitting: false };
   }
 
   revalidatePath('/dashboard');

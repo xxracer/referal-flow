@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useState, useActionState } from 'react';
+import React, { useState, useActionState, useRef } from 'react';
 import { useFormStatus } from 'react-dom';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, AlertCircle, Phone, Mail, Printer, UploadCloud } from 'lucide-react';
+import { Loader2, AlertCircle, Phone, Mail, Printer, UploadCloud, File as FileIcon, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { submitReferral, type FormState } from '@/lib/actions';
 import { referralSchema } from '@/lib/schemas';
+import { cn } from '@/lib/utils';
+import { Progress } from '@/components/ui/progress';
 
 const services = [
     { id: 'skilledNursing', label: 'Skilled Nursing (SN)' },
@@ -27,8 +28,82 @@ const services = [
     { id: 'other', label: 'Other' },
 ] as const;
 
+function FileUploadArea() {
+    const [files, setFiles] = useState<File[]>([]);
+    const [totalSize, setTotalSize] = useState(0);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const MAX_SIZE_MB = 1;
+    const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
+  
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+      const selectedFiles = Array.from(event.target.files || []);
+      const newFiles = [...files, ...selectedFiles];
+      setFiles(newFiles);
+      const newTotalSize = newFiles.reduce((acc, file) => acc + file.size, 0);
+      setTotalSize(newTotalSize);
+    };
+
+    const removeFile = (index: number) => {
+        const newFiles = files.filter((_, i) => i !== index);
+        setFiles(newFiles);
+        const newTotalSize = newFiles.reduce((acc, file) => acc + file.size, 0);
+        setTotalSize(newTotalSize);
+         // Reset the file input value to allow re-selecting the same file
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    };
+  
+    const isOverLimit = totalSize > MAX_SIZE_BYTES;
+  
+    return (
+        <div className="space-y-4">
+            <div className="flex items-center justify-center w-full">
+                <label htmlFor="documents" className={cn("flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-card hover:bg-muted", isOverLimit && "border-destructive")}>
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        <UploadCloud className={cn("w-8 h-8 mb-3 text-muted-foreground", isOverLimit && "text-destructive")} />
+                        <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload files</span></p>
+                        <p className="text-xs text-muted-foreground">PDF, JPG, PNG up to {MAX_SIZE_MB}MB total</p>
+                    </div>
+                    <Input id="documents" name="documents" type="file" className="hidden" multiple onChange={handleFileChange} ref={fileInputRef} />
+                </label>
+            </div>
+            {files.length > 0 && (
+                <div className="space-y-3">
+                    <div className="flex justify-between items-center text-sm">
+                        <p className="font-medium">Selected files ({files.length})</p>
+                        <p className={cn("font-medium", isOverLimit ? "text-destructive" : "text-muted-foreground")}>
+                            {(totalSize / (1024 * 1024)).toFixed(2)} MB / {MAX_SIZE_MB} MB
+                        </p>
+                    </div>
+                     <Progress value={(totalSize / MAX_SIZE_BYTES) * 100} className={cn("h-2", isOverLimit && "[&>div]:bg-destructive")} />
+                    {isOverLimit && (
+                        <p className="text-sm text-destructive">
+                           Total file size exceeds the {MAX_SIZE_MB}MB limit. Please remove some files.
+                        </p>
+                    )}
+                    <ul className="space-y-2">
+                        {files.map((file, index) => (
+                        <li key={index} className="flex items-center justify-between p-2 rounded-md bg-muted text-sm">
+                            <div className="flex items-center gap-2 overflow-hidden">
+                                <FileIcon className="h-4 w-4 flex-shrink-0" />
+                                <span className="truncate">{file.name}</span>
+                                <span className="text-muted-foreground flex-shrink-0">({(file.size / 1024).toFixed(1)} KB)</span>
+                            </div>
+                            <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeFile(index)}>
+                                <X className="h-4 w-4" />
+                            </Button>
+                        </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default function ReferPage() {
-  const [formState, formAction] = useActionState(submitReferral, { message: '', success: false });
+  const [formState, formAction] = useActionState(submitReferral, { message: '', success: false, isSubmitting: false });
   const { pending } = useFormStatus();
 
   return (
@@ -81,7 +156,7 @@ export default function ReferPage() {
                     {formState.errors?.phone && <p className="text-sm text-destructive">{formState.errors.phone[0]}</p>}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email Address (optional)</Label>
+                    <Label htmlFor="email">Email Address (for confirmation)</Label>
                     <Input id="email" type="email" name="email" placeholder="e.g., case.manager@facility.com" />
                     {formState.errors?.email && <p className="text-sm text-destructive">{formState.errors.email[0]}</p>}
                   </div>
@@ -169,22 +244,10 @@ export default function ReferPage() {
             <Card>
                 <CardHeader>
                     <CardTitle className="font-headline text-2xl">Supporting Documentation</CardTitle>
-                    <CardDescription>You can optionally upload relevant documents like insurance cards, medical history, or physician's orders.</CardDescription>
+                    <CardDescription>You can optionally upload relevant documents like insurance cards, medical history, or physician's orders. </CardDescription>
                 </CardHeader>
                 <CardContent>
-                     <div className="space-y-2">
-                        <Label htmlFor="documents">Upload Documents</Label>
-                        <div className="flex items-center justify-center w-full">
-                            <label htmlFor="documents" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-card hover:bg-muted">
-                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                    <UploadCloud className="w-8 h-8 mb-3 text-muted-foreground" />
-                                    <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload files</span></p>
-                                    <p className="text-xs text-muted-foreground">PDF, JPG, PNG up to 1MB total</p>
-                                </div>
-                                <Input id="documents" name="documents" type="file" className="hidden" multiple />
-                            </label>
-                        </div>
-                    </div>
+                     <FileUploadArea />
                 </CardContent>
             </Card>
 
@@ -195,9 +258,9 @@ export default function ReferPage() {
                 </Alert>
             )}
             
-            <Button type="submit" disabled={pending} size="lg" className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/90">
-                {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                SUBMIT REFERRAL
+            <Button type="submit" disabled={pending || formState.isSubmitting} size="lg" className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/90">
+                {pending || formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                {formState.isSubmitting ? 'Submitting & Processing Files...' : 'SUBMIT REFERRAL'}
             </Button>
           </form>
         </div>
