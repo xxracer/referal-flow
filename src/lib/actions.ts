@@ -18,10 +18,9 @@ export type FormState = {
 };
 
 export async function submitReferral(prevState: FormState, formData: FormData): Promise<FormState> {
-  // Set isSubmitting to true immediately
   const submissionState: FormState = { ...prevState, isSubmitting: true, message: 'Processing...', success: false };
   
-  const validatedFields = referralSchema.safeParse({
+  const formValues = {
     organizationName: formData.get('organizationName'),
     contactName: formData.get('contactName'),
     phone: formData.get('phone'),
@@ -31,8 +30,10 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
     patientZipCode: formData.get('patientZipCode'),
     primaryInsurance: formData.get('primaryInsurance'),
     servicesNeeded: formData.getAll('servicesNeeded'),
-    documents: formData.getAll('documents'),
-  });
+    documents: formData.getAll('documents').filter(f => f instanceof File && f.size > 0),
+  };
+
+  const validatedFields = referralSchema.safeParse(formValues);
   
   if (!validatedFields.success) {
     return {
@@ -46,7 +47,7 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
   const referralId = `TX-REF-2026-${Date.now().toString().slice(-6)}`;
   
   const uploadedDocuments: Document[] = [];
-  const documentFiles = formData.getAll('documents') as File[];
+  const documentFiles = validatedFields.data.documents || [];
   const dataForPdf = { ...validatedFields.data, documents: undefined };
 
   try {

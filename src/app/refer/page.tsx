@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useActionState, useRef } from 'react';
+import React, { useState, useActionState, useRef, useEffect } from 'react';
 import { useFormStatus } from 'react-dom';
 import { z } from 'zod';
 import { Loader2, AlertCircle, Phone, Mail, Printer, UploadCloud, File as FileIcon, X } from 'lucide-react';
@@ -28,71 +28,63 @@ const services = [
     { id: 'other', label: 'Other' },
 ] as const;
 
-function FileUploadArea() {
+function FileUploadArea({ formState }: { formState: FormState }) {
     const [files, setFiles] = useState<File[]>([]);
     const [totalSize, setTotalSize] = useState(0);
-    const fileInputRef1 = useRef<HTMLInputElement>(null);
-    const fileInputRef2 = useRef<HTMLInputElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const MAX_SIZE_MB = 5;
     const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
+    const dataTransfer = new DataTransfer();
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const selectedFiles = Array.from(event.target.files || []);
+        const newFiles = Array.from(event.target.files || []);
+        if (newFiles.length === 0) return;
         
-        // Don't add files if no file was selected (e.g., user clicked cancel)
-        if (selectedFiles.length === 0) return;
+        const currentFiles = files.concat(newFiles);
+        updateFileList(currentFiles);
 
-        const newFiles = [...files, ...selectedFiles];
-        updateFiles(newFiles);
-        
-        // Reset the input so the user can select the same file again if they remove it
-        if (event.target.id === 'documents') {
-            if (fileInputRef1.current) fileInputRef1.current.value = '';
-        } else {
-            if (fileInputRef2.current) fileInputRef2.current.value = '';
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
         }
     };
     
-    const updateFiles = (newFiles: File[]) => {
-      setFiles(newFiles);
-      const newTotalSize = newFiles.reduce((acc, file) => acc + file.size, 0);
+    const updateFileList = (fileList: File[]) => {
+      setFiles(fileList);
+      const newTotalSize = fileList.reduce((acc, file) => acc + file.size, 0);
       setTotalSize(newTotalSize);
+
+      // Update the native file input for form submission
+      dataTransfer.clear();
+      fileList.forEach(file => dataTransfer.items.add(file));
+      if (fileInputRef.current) {
+        fileInputRef.current.files = dataTransfer.files;
+      }
     }
 
     const removeFile = (indexToRemove: number) => {
         const newFiles = files.filter((_, index) => index !== indexToRemove);
-        updateFiles(newFiles);
+        updateFileList(newFiles);
     };
 
     const isOverLimit = totalSize > MAX_SIZE_BYTES;
-    
-    const hiddenFileInputs = (
-        <div className="hidden">
-            <Input id="documents" name="documents" type="file" multiple ref={fileInputRef1} onChange={handleFileChange} />
-            <Input id="progressNotes" name="documents" type="file" multiple ref={fileInputRef2} onChange={handleFileChange} />
-        </div>
-    );
+    const fileErrors = formState.errors?.documents;
 
     return (
         <div className="space-y-4">
-             {hiddenFileInputs}
+             <Input id="documents" name="documents" type="file" multiple ref={fileInputRef} onChange={handleFileChange} className="hidden" />
+
              <p className="text-sm text-muted-foreground">
-                Uploading documents allows us to confirm insurance and respond faster. You can additionally fax it to 713-378-5289.
+                Uploading documents allows us to confirm insurance and respond faster. You can additionally fax it to 713-378-5289. Max total size: {MAX_SIZE_MB}MB.
              </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                    <Label htmlFor="documents">Upload Referral Documents (optional)</Label>
-                    <Button type="button" variant="outline" className="w-full" onClick={() => fileInputRef1.current?.click()}>
-                        Choose Files
-                    </Button>
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="progressNotes">Upload Progress Notes (optional)</Label>
-                    <Button type="button" variant="outline" className="w-full" onClick={() => fileInputRef2.current?.click()}>
-                       Choose Files
-                    </Button>
-                </div>
-            </div>
+
+            <Button type="button" variant="outline" className="w-full" onClick={() => fileInputRef.current?.click()}>
+                <UploadCloud className="mr-2" />
+                Choose Referral Documents & Progress Notes
+            </Button>
+
+            {fileErrors && (
+                <p className="text-sm text-destructive">{fileErrors[0]}</p>
+            )}
 
             {files.length > 0 && (
                 <div className="space-y-3 pt-4">
@@ -131,6 +123,14 @@ function FileUploadArea() {
 export default function ReferPage() {
   const [formState, formAction] = useActionState(submitReferral, { message: '', success: false, isSubmitting: false });
   const { pending } = useFormStatus();
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (formState.success) {
+      formRef.current?.reset();
+    }
+  }, [formState.success]);
+
 
   return (
     <div className="flex flex-col min-h-dvh">
@@ -158,7 +158,7 @@ export default function ReferPage() {
                 </CardContent>
             </Card>
 
-          <form action={formAction} className="space-y-8">
+          <form action={formAction} ref={formRef} className="space-y-8">
             <Card>
               <CardHeader>
                 <CardTitle className="font-headline text-2xl">Referrer Information</CardTitle>
@@ -272,7 +272,7 @@ export default function ReferPage() {
                     <CardTitle className="font-headline text-2xl">Supporting Documentation</CardTitle>
                 </CardHeader>
                 <CardContent>
-                     <FileUploadArea />
+                     <FileUploadArea formState={formState} />
                 </CardContent>
             </Card>
 
