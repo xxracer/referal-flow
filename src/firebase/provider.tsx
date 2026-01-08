@@ -8,7 +8,7 @@ import { UserProvider } from './auth/use-user';
 export interface FirebaseContextValue {
   firebaseApp: FirebaseApp;
   auth: Auth;
-  firestore?: Firestore; // Firestore is now optional
+  firestore: Firestore;
 }
 
 const FirebaseContext = createContext<FirebaseContextValue | null>(null);
@@ -39,11 +39,9 @@ export const useFirebase = () => {
 
 export const useFirebaseApp = () => useFirebase().firebaseApp;
 export const useFirestore = () => {
-    // This will now throw an error if used, which is intended
-    // as we have removed Firestore from the app.
     const firestore = useFirebase().firestore;
     if (!firestore) {
-        throw new Error("Firestore has been removed from this application.");
+        throw new Error("Firestore is not available. Please check your Firebase setup.");
     }
     return firestore;
 }

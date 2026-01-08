@@ -1,5 +1,5 @@
 'use client';
-import { notFound } from 'next/navigation';
+import { notFound, useParams } from 'next/navigation';
 import { db } from '@/lib/data';
 import {
   Card,
@@ -33,6 +33,8 @@ import {
   Stethoscope,
   Building,
   Download,
+  Mail,
+  Phone,
 } from 'lucide-react';
 import StatusBadge from '@/components/referrals/status-badge';
 import { formatDate } from '@/lib/utils';
@@ -56,14 +58,23 @@ function SubmitButton({ text, icon: Icon }: { text: string, icon?: React.Element
     );
 }
 
-export default function ReferralDetailPage({ params }: { params: { id:string } }) {
-  const { id } = use(params);
+export default function ReferralDetailPage() {
+  const params = useParams();
+  const id = params.id as string;
   const [referral, setReferral] = useState<Referral | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!id) return;
     const fetchReferral = async () => {
+      setLoading(true);
       const data = await db.getReferralById(id);
-      if (data) setReferral(data as Referral);
+      if (data) {
+        setReferral(data as Referral);
+      } else {
+        setReferral(null);
+      }
+      setLoading(false);
     };
     fetchReferral();
   }, [id]);
@@ -92,10 +103,19 @@ export default function ReferralDetailPage({ params }: { params: { id:string } }
   const [noteState, noteFormAction, isNotePending] = useActionState(addInternalNote.bind(null, id), { message: '', success: false });
   const [statusState, statusFormAction, isStatusPending] = useActionState(updateReferralStatus.bind(null, id), { message: '', success: false });
 
-  if (!optimisticReferral) {
+  if (loading) {
     return (
         <div className="flex items-center justify-center h-full">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <p className="ml-2">Loading referral...</p>
+        </div>
+    );
+  }
+
+  if (!optimisticReferral) {
+    return (
+        <div className="flex items-center justify-center h-full">
+            <p>Referral not found.</p>
         </div>
     );
   }
@@ -142,8 +162,27 @@ export default function ReferralDetailPage({ params }: { params: { id:string } }
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <Card className="bg-muted/30">
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                         <Card className="bg-muted/30">
+                            <CardHeader>
+                                <CardTitle className="text-xl font-semibold flex items-center gap-2"><Building className="text-primary"/> Referrer Information</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-2 text-sm">
+                                <p><strong>Organization:</strong> {optimisticReferral.referrerName}</p>
+                                <p><strong>Contact Person:</strong> {optimisticReferral.contactPerson}</p>
+                                <div className="flex items-center gap-2">
+                                    <Phone className="w-4 h-4 text-muted-foreground"/>
+                                    <p><strong>Phone:</strong> {optimisticReferral.referrerContact}</p>
+                                </div>
+                                {optimisticReferral.confirmationEmail && (
+                                     <div className="flex items-center gap-2">
+                                        <Mail className="w-4 h-4 text-muted-foreground"/>
+                                        <p><strong>Email:</strong> {optimisticReferral.confirmationEmail}</p>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                         <Card className="bg-muted/30">
                             <CardHeader>
                                 <CardTitle className="text-xl font-semibold flex items-center gap-2"><User className="text-primary"/> Patient Information</CardTitle>
                             </CardHeader>
@@ -153,25 +192,25 @@ export default function ReferralDetailPage({ params }: { params: { id:string } }
                                 <p><strong>Address:</strong> {optimisticReferral.patientAddress}, {optimisticReferral.patientZipCode}</p>
                                 <p><strong>PCP:</strong> {optimisticReferral.pcpName || 'N/A'}</p>
                                 <p><strong>PCP Phone:</strong> {optimisticReferral.pcpPhone || 'N/A'}</p>
+                                <p><strong>Surgery Date:</strong> {optimisticReferral.surgeryDate ? formatDate(optimisticReferral.surgeryDate) : 'N/A'}</p>
                                 <p><strong>COVID Status:</strong> {optimisticReferral.covidStatus || 'N/A'}</p>
                             </CardContent>
                         </Card>
-                         <Card className="bg-muted/30">
-                            <CardHeader>
-                                <CardTitle className="text-xl font-semibold flex items-center gap-2"><Building className="text-primary"/> Insurance & Referrer</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-2 text-sm">
-                                <p><strong>Insurance Payer:</strong> {optimisticReferral.patientInsurance}</p>
-                                <p><strong>Member ID:</strong> {optimisticReferral.memberId}</p>
-                                <p><strong>Plan Name:</strong> {optimisticReferral.planName || 'N/A'}</p>
-                                <p><strong>Group #:</strong> {optimisticReferral.groupNumber || 'N/A'}</p>
-                                <Separator className="my-3" />
-                                <p><strong>Referred By:</strong> {optimisticReferral.referrerName}</p>
-                                <p><strong>Contact:</strong> {optimisticReferral.contactPerson}</p>
-                                <p><strong>Contact Phone:</strong> {optimisticReferral.referrerContact}</p>
-                            </CardContent>
-                        </Card>
                     </div>
+
+                    <Card className="bg-muted/30">
+                        <CardHeader>
+                            <CardTitle className="text-xl font-semibold flex items-center gap-2"><HeartPulse className="text-primary"/> Insurance</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2 text-sm">
+                            <p><strong>Payer:</strong> {optimisticReferral.patientInsurance}</p>
+                            <p><strong>Member ID:</strong> {optimisticReferral.memberId}</p>
+                            <p><strong>Plan Name:</strong> {optimisticReferral.planName || 'N/A'}</p>
+                            <p><strong>Plan Number:</strong> {optimisticReferral.planNumber || 'N/A'}</p>
+                            <p><strong>Group #:</strong> {optimisticReferral.groupNumber || 'N/A'}</p>
+                             <p><strong>Type:</strong> {optimisticReferral.insuranceType || 'N/A'}</p>
+                        </CardContent>
+                    </Card>
 
                     <Separator />
                     
@@ -186,7 +225,7 @@ export default function ReferralDetailPage({ params }: { params: { id:string } }
                             </div>
                              <div>
                                 <h4 className="font-bold mb-2">Diagnosis & Order Notes:</h4>
-                                <p>{optimisticReferral.diagnosis}</p>
+                                <p className="p-3 bg-muted rounded-md whitespace-pre-wrap">{optimisticReferral.diagnosis}</p>
                             </div>
                         </div>
                     </div>
