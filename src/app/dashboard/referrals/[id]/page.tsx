@@ -112,6 +112,15 @@ export default function ReferralDetailPage({ params }: { params: { id:string } }
     toast({ title: "Status Updated", description: `Referral status changed to ${status.replace('_', ' ').toLowerCase()}.` });
   };
   
+  const handleDownload = (docUrl: string, docName: string) => {
+    const link = document.createElement("a");
+    link.href = docUrl;
+    link.download = docName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const servicesMap = {
     skilledNursing: 'Skilled Nursing (SN)',
     physicalTherapy: 'Physical Therapy (PT)',
@@ -211,8 +220,8 @@ export default function ReferralDetailPage({ params }: { params: { id:string } }
                                 {optimisticReferral.documents.map(doc => (
                                     <li key={doc.id} className="flex items-center justify-between p-3 rounded-md bg-muted">
                                         <span className="font-medium">{doc.name}</span>
-                                        <Button variant="ghost" size="sm" asChild>
-                                            <a href={doc.url} download>Download</a>
+                                        <Button variant="ghost" size="sm" onClick={() => handleDownload(doc.url, doc.name)}>
+                                            Download
                                         </Button>
                                     </li>
                                 ))}
