@@ -4,11 +4,11 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { referralSchema } from './schemas';
-import { saveReferral, findReferral, getReferralById } from './data';
+import { saveReferral, findReferral, getReferralById, getStorageInstance } from './data';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import type { Referral, ReferralStatus, Document } from './types';
 import { categorizeReferral } from '@/ai/flows/smart-categorization';
 import { generateReferralPdf } from '@/ai/flows/generate-referral-pdf';
-import { put } from '@vercel/blob';
 
 export type FormState = {
   message: string;
@@ -18,15 +18,18 @@ export type FormState = {
   isSubmitting?: boolean;
 };
 
-async function uploadFiles(files: File[]): Promise<Document[]> {
+async function uploadFiles(files: File[], referralId: string): Promise<Document[]> {
+    const storage = getStorageInstance();
     const uploadedDocuments: Document[] = [];
     for (const file of files) {
         if (file && file.size > 0) {
-            const blob = await put(file.name, file, { access: 'public', addRandomSuffix: true });
+            const storageRef = ref(storage, `referrals/${referralId}/${file.name}`);
+            const uploadResult = await uploadBytes(storageRef, file);
+            const url = await getDownloadURL(uploadResult.ref);
             uploadedDocuments.push({
-                id: blob.pathname,
+                id: uploadResult.ref.fullPath,
                 name: file.name,
-                url: blob.url,
+                url: url,
                 size: file.size,
             });
         }
@@ -64,20 +67,25 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
   try {
     // 1. Upload user-provided documents from both fields
     if (referralDocuments) {
-        allUploadedDocuments.push(...await uploadFiles(referralDocuments));
+        allUploadedDocuments.push(...await uploadFiles(referralDocuments, referralId));
     }
     if (progressNotes) {
-        allUploadedDocuments.push(...await uploadFiles(progressNotes));
+        allUploadedDocuments.push(...await uploadFiles(progressNotes, referralId));
     }
 
     // 2. Generate PDF from form data using AI flow (only passing serializable data)
     const pdfBytes = await generateReferralPdf(formDataForPdf);
     const pdfName = `Referral-Summary-${referralId}.pdf`;
-    const pdfBlob = await put(pdfName, pdfBytes, { access: 'public', contentType: 'application/pdf', addRandomSuffix: true });
+
+    const storage = getStorageInstance();
+    const pdfStorageRef = ref(storage, `referrals/${referralId}/${pdfName}`);
+    const pdfUploadResult = await uploadBytes(pdfStorageRef, pdfBytes, { contentType: 'application/pdf' });
+    const pdfUrl = await getDownloadURL(pdfUploadResult.ref);
+
     allUploadedDocuments.push({
-      id: pdfBlob.pathname,
+      id: pdfUploadResult.ref.fullPath,
       name: pdfName,
-      url: pdfBlob.url,
+      url: pdfUrl,
       size: pdfBytes.length,
     });
 
