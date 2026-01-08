@@ -4,7 +4,8 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { referralSchema } from './schemas';
-import { saveReferral, findReferral, getReferralById, getStorageInstance } from './data';
+import { saveReferral, findReferral, getReferralById } from './data';
+import { initializeFirebase } from '@/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import type { Referral, ReferralStatus, Document } from './types';
 import { categorizeReferral } from '@/ai/flows/smart-categorization';
@@ -19,7 +20,7 @@ export type FormState = {
 };
 
 async function uploadFiles(files: File[], referralId: string): Promise<Document[]> {
-    const storage = getStorageInstance();
+    const { storage } = initializeFirebase();
     const uploadedDocuments: Document[] = [];
     for (const file of files) {
         if (file && file.size > 0) {
@@ -77,7 +78,7 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
     const pdfBytes = await generateReferralPdf(formDataForPdf);
     const pdfName = `Referral-Summary-${referralId}.pdf`;
 
-    const storage = getStorageInstance();
+    const { storage } = initializeFirebase();
     const pdfStorageRef = ref(storage, `referrals/${referralId}/${pdfName}`);
     const pdfUploadResult = await uploadBytes(pdfStorageRef, pdfBytes, { contentType: 'application/pdf' });
     const pdfUrl = await getDownloadURL(pdfUploadResult.ref);

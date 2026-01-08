@@ -1,4 +1,6 @@
 
+export const dynamic = 'force-dynamic';
+
 import { getReferrals } from '@/lib/data';
 import Link from 'next/link';
 import {
