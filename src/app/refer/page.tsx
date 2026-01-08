@@ -31,45 +31,71 @@ const services = [
 function FileUploadArea() {
     const [files, setFiles] = useState<File[]>([]);
     const [totalSize, setTotalSize] = useState(0);
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    const fileInputRef1 = useRef<HTMLInputElement>(null);
+    const fileInputRef2 = useRef<HTMLInputElement>(null);
     const MAX_SIZE_MB = 5;
     const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
-  
+
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-      const selectedFiles = Array.from(event.target.files || []);
-      const newFiles = [...files, ...selectedFiles];
+        const selectedFiles = Array.from(event.target.files || []);
+        
+        // Don't add files if no file was selected (e.g., user clicked cancel)
+        if (selectedFiles.length === 0) return;
+
+        const newFiles = [...files, ...selectedFiles];
+        updateFiles(newFiles);
+        
+        // Reset the input so the user can select the same file again if they remove it
+        if (event.target.id === 'documents') {
+            if (fileInputRef1.current) fileInputRef1.current.value = '';
+        } else {
+            if (fileInputRef2.current) fileInputRef2.current.value = '';
+        }
+    };
+    
+    const updateFiles = (newFiles: File[]) => {
       setFiles(newFiles);
       const newTotalSize = newFiles.reduce((acc, file) => acc + file.size, 0);
       setTotalSize(newTotalSize);
+    }
+
+    const removeFile = (indexToRemove: number) => {
+        const newFiles = files.filter((_, index) => index !== indexToRemove);
+        updateFiles(newFiles);
     };
 
-    const removeFile = (index: number) => {
-        const newFiles = files.filter((_, i) => i !== index);
-        setFiles(newFiles);
-        const newTotalSize = newFiles.reduce((acc, file) => acc + file.size, 0);
-        setTotalSize(newTotalSize);
-         // Reset the file input value to allow re-selecting the same file
-        if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-        }
-    };
-  
     const isOverLimit = totalSize > MAX_SIZE_BYTES;
-  
+    
+    const hiddenFileInputs = (
+        <div className="hidden">
+            <Input id="documents" name="documents" type="file" multiple ref={fileInputRef1} onChange={handleFileChange} />
+            <Input id="progressNotes" name="documents" type="file" multiple ref={fileInputRef2} onChange={handleFileChange} />
+        </div>
+    );
+
     return (
         <div className="space-y-4">
-            <div className="flex items-center justify-center w-full">
-                <label htmlFor="documents" className={cn("flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-card hover:bg-muted", isOverLimit && "border-destructive")}>
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                        <UploadCloud className={cn("w-8 h-8 mb-3 text-muted-foreground", isOverLimit && "text-destructive")} />
-                        <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload files</span></p>
-                        <p className="text-xs text-muted-foreground">PDF, JPG, PNG up to {MAX_SIZE_MB}MB total</p>
-                    </div>
-                    <Input id="documents" name="documents" type="file" className="hidden" multiple onChange={handleFileChange} ref={fileInputRef} />
-                </label>
+             {hiddenFileInputs}
+             <p className="text-sm text-muted-foreground">
+                Uploading documents allows us to confirm insurance and respond faster. You can additionally fax it to 713-378-5289.
+             </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                    <Label htmlFor="documents">Upload Referral Documents (optional)</Label>
+                    <Button type="button" variant="outline" className="w-full" onClick={() => fileInputRef1.current?.click()}>
+                        Elegir archivos
+                    </Button>
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="progressNotes">Upload Progress Notes (optional)</Label>
+                    <Button type="button" variant="outline" className="w-full" onClick={() => fileInputRef2.current?.click()}>
+                       Elegir archivos
+                    </Button>
+                </div>
             </div>
+
             {files.length > 0 && (
-                <div className="space-y-3">
+                <div className="space-y-3 pt-4">
                     <div className="flex justify-between items-center text-sm">
                         <p className="font-medium">Selected files ({files.length})</p>
                         <p className={cn("font-medium", isOverLimit ? "text-destructive" : "text-muted-foreground")}>
@@ -243,8 +269,7 @@ export default function ReferPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle className="font-headline text-2xl">Supporting Documentation</CardTitle>
-                    <CardDescription>You can optionally upload relevant documents like insurance cards, medical history, or physician's orders. </CardDescription>
+                    <CardTitle className="font-headline text-2xl">Supporting Documentation (optional)</CardTitle>
                 </CardHeader>
                 <CardContent>
                      <FileUploadArea />
