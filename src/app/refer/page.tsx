@@ -32,7 +32,7 @@ function FileUploadArea() {
     const [files, setFiles] = useState<File[]>([]);
     const [totalSize, setTotalSize] = useState(0);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const MAX_SIZE_MB = 1;
+    const MAX_SIZE_MB = 5;
     const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
   
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {

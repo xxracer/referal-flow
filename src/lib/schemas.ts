@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const MAX_TOTAL_SIZE = 1 * 1024 * 1024; // 1MB total
+const MAX_TOTAL_SIZE = 5 * 1024 * 1024; // 5MB total
 const ACCEPTED_FILE_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
 
 const fileSchema = z
@@ -36,7 +36,7 @@ export const referralSchema = z.object({
       .refine(files => {
         const totalSize = files.reduce((acc, file) => acc + (file?.size || 0), 0);
         return totalSize <= MAX_TOTAL_SIZE;
-      }, `Total file size must not exceed 1MB.`)
+      }, `Total file size must not exceed 5MB.`)
       .optional()
   ),
 });
