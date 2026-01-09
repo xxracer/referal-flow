@@ -19,34 +19,20 @@ export type FormState = {
   isSubmitting?: boolean;
 };
 
-async function uploadFiles(files: File[], referralId: string): Promise<Document[]> {
-    const { storage } = initializeFirebase();
-    const uploadedDocuments: Document[] = [];
-    for (const file of files) {
-        if (file && file.size > 0) {
-            const storageRef = ref(storage, `referrals/${referralId}/${file.name}`);
-            const uploadResult = await uploadBytes(storageRef, file);
-            const url = await getDownloadURL(uploadResult.ref);
-            uploadedDocuments.push({
-                id: uploadResult.ref.fullPath,
-                name: file.name,
-                url: url,
-                size: file.size,
-            });
-        }
-    }
-    return uploadedDocuments;
-}
-
 export async function submitReferral(prevState: FormState, formData: FormData): Promise<FormState> {
   const submissionState: FormState = { ...prevState, isSubmitting: true, message: 'Processing...', success: false };
   
   const formValues = Object.fromEntries(formData.entries());
   formValues.servicesNeeded = formData.getAll('servicesNeeded');
   
-  // Explicitly handle file inputs
-  formValues.referralDocuments = formData.getAll('referralDocuments').filter(f => f instanceof File && f.size > 0);
-  formValues.progressNotes = formData.getAll('progressNotes').filter(f => f instanceof File && f.size > 0);
+  // Handle file URLs and metadata from the client-side upload
+  const referralDocumentUrls = JSON.parse(formData.get('referralDocumentUrls') as string || '[]');
+  const progressNoteUrls = JSON.parse(formData.get('progressNoteUrls') as string || '[]');
+  const referralDocumentMetadata = JSON.parse(formData.get('referralDocumentMetadata') as string || '[]');
+  const progressNoteMetadata = JSON.parse(formData.get('progressNoteMetadata') as string || '[]');
+
+  formValues.referralDocuments = referralDocumentMetadata;
+  formValues.progressNotes = progressNoteMetadata;
 
 
   const validatedFields = referralSchema.safeParse(formValues);
@@ -66,13 +52,25 @@ export async function submitReferral(prevState: FormState, formData: FormData): 
   let allUploadedDocuments: Document[] = [];
 
   try {
-    // 1. Upload user-provided documents from both fields
-    if (referralDocuments) {
-        allUploadedDocuments.push(...await uploadFiles(referralDocuments, referralId));
-    }
-    if (progressNotes) {
-        allUploadedDocuments.push(...await uploadFiles(progressNotes, referralId));
-    }
+    // 1. Combine pre-uploaded documents from the client
+    referralDocumentUrls.forEach((url: string, index: number) => {
+        const metadata = referralDocumentMetadata[index];
+        allUploadedDocuments.push({
+            id: url, // Using URL as ID for simplicity, can be changed later
+            name: metadata.name,
+            url: url,
+            size: metadata.size,
+        });
+    });
+    progressNoteUrls.forEach((url: string, index: number) => {
+        const metadata = progressNoteMetadata[index];
+        allUploadedDocuments.push({
+            id: url,
+            name: metadata.name,
+            url: url,
+            size: metadata.size,
+        });
+    });
 
     // 2. Generate PDF from form data using AI flow (only passing serializable data)
     const pdfBytes = await generateReferralPdf(formDataForPdf);

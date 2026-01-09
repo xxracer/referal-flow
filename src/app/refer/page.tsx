@@ -3,7 +3,9 @@
 import React, { useState, useActionState, useRef, useEffect, useCallback } from 'react';
 import { useFormStatus } from 'react-dom';
 import { z } from 'zod';
-import { Loader2, AlertCircle, Phone, Mail, Printer, UploadCloud, File as FileIcon, X } from 'lucide-react';
+import { Loader2, AlertCircle, Phone, Mail, Printer, UploadCloud, File as FileIcon, X, CheckCircle } from 'lucide-react';
+import { initializeFirebase } from '@/firebase';
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -36,11 +38,21 @@ const insuranceOptions = [
     "Wellpoint MMP", "Other"
 ];
 
-const MAX_SIZE_MB = 5;
+const MAX_SIZE_MB = 10;
 const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
 
+type UploadStatus = 'uploading' | 'completed' | 'error';
+
+interface UploadableFile {
+  file: File;
+  status: UploadStatus;
+  progress: number;
+  url?: string;
+  error?: string;
+}
+
 interface FileListProps {
-  files: File[];
+  files: UploadableFile[];
   onRemove: (index: number) => void;
 }
 
@@ -49,16 +61,22 @@ function FileList({ files, onRemove }: FileListProps) {
 
   return (
     <ul className="space-y-2 mt-2">
-      {files.map((file, index) => (
+      {files.map((upload, index) => (
         <li key={index} className="flex items-center justify-between p-2 rounded-md bg-muted text-sm">
-          <div className="flex items-center gap-2 overflow-hidden">
+          <div className="flex items-center gap-2 overflow-hidden flex-1">
             <FileIcon className="h-4 w-4 flex-shrink-0" />
-            <span className="truncate">{file.name}</span>
-            <span className="text-muted-foreground flex-shrink-0">({(file.size / 1024).toFixed(1)} KB)</span>
+            <div className="flex-1 overflow-hidden">
+                <p className="truncate">{upload.file.name} <span className="text-muted-foreground text-xs">({(upload.file.size / 1024).toFixed(1)} KB)</span></p>
+                {upload.status === 'uploading' && <Progress value={upload.progress} className="h-1 mt-1" />}
+                {upload.status === 'completed' && <p className="text-xs text-green-600 flex items-center gap-1"><CheckCircle className="h-3 w-3"/> Upload successful</p>}
+                {upload.status === 'error' && <p className="text-xs text-destructive">{upload.error || 'Upload failed'}</p>}
+            </div>
           </div>
-          <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => onRemove(index)}>
-            <X className="h-4 w-4" />
-          </Button>
+          {upload.status !== 'uploading' && (
+            <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => onRemove(index)}>
+                <X className="h-4 w-4" />
+            </Button>
+          )}
         </li>
       ))}
     </ul>
@@ -70,30 +88,60 @@ export default function ReferPage() {
   const [formState, formAction] = useActionState(submitReferral, { message: '', success: false, isSubmitting: false });
   const { pending } = useFormStatus();
   const formRef = useRef<HTMLFormElement>(null);
-  
-  const [referralDocs, setReferralDocs] = useState<File[]>([]);
-  const [progressNotes, setProgressNotes] = useState<File[]>([]);
+
+  const [referralDocs, setReferralDocs] = useState<UploadableFile[]>([]);
+  const [progressNotes, setProgressNotes] = useState<UploadableFile[]>([]);
   const referralDocsRef = useRef<HTMLInputElement>(null);
   const progressNotesRef = useRef<HTMLInputElement>(null);
 
-  const totalSize = [...referralDocs, ...progressNotes].reduce((acc, file) => acc + file.size, 0);
+  const allFiles = [...referralDocs, ...progressNotes];
+  const totalSize = allFiles.reduce((acc, up) => acc + up.file.size, 0);
   const isOverLimit = totalSize > MAX_SIZE_BYTES;
+  const isUploading = allFiles.some(f => f.status === 'uploading');
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, setFiles: React.Dispatch<React.SetStateAction<File[]>>) => {
-      const newFiles = Array.from(event.target.files || []);
-      if (newFiles.length > 0) {
-          setFiles(prev => [...prev, ...newFiles]);
-      }
-      // Clear the input value to allow selecting the same file again
-      event.target.value = '';
+  const handleUpload = (files: File[], setUploads: React.Dispatch<React.SetStateAction<UploadableFile[]>>) => {
+    const { storage } = initializeFirebase();
+    const newUploads: UploadableFile[] = files.map(file => ({
+      file,
+      status: 'uploading',
+      progress: 0,
+    }));
+
+    setUploads(prev => [...prev, ...newUploads]);
+
+    newUploads.forEach((upload, index) => {
+      const originalIndex = Date.now() + index; // A simple unique ID for this upload batch
+      const storageRef = ref(storage, `uploads/${Date.now()}_${upload.file.name}`);
+      const uploadTask = uploadBytesResumable(storageRef, upload.file);
+
+      uploadTask.on('state_changed',
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setUploads(prev => prev.map(u => u.file === upload.file ? { ...u, progress } : u));
+        },
+        (error) => {
+          console.error("Upload error:", error);
+          setUploads(prev => prev.map(u => u.file === upload.file ? { ...u, status: 'error', error: error.message } : u));
+        },
+        () => {
+          getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+            setUploads(prev => prev.map(u => u.file === upload.file ? { ...u, status: 'completed', url: downloadURL, progress: 100 } : u));
+          });
+        }
+      );
+    });
   };
-  
-  const removeReferralDoc = (index: number) => {
-    setReferralDocs(prev => prev.filter((_, i) => i !== index));
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, setUploads: React.Dispatch<React.SetStateAction<UploadableFile[]>>) => {
+    const newFiles = Array.from(event.target.files || []);
+    if (newFiles.length > 0) {
+      handleUpload(newFiles, setUploads);
+    }
+    event.target.value = '';
   };
-  
-  const removeProgressNote = (index: number) => {
-    setProgressNotes(prev => prev.filter((_, i) => i !== index));
+
+  const removeFile = (index: number, setUploads: React.Dispatch<React.SetStateAction<UploadableFile[]>>) => {
+    setUploads(prev => prev.filter((_, i) => i !== index));
   };
 
   useEffect(() => {
@@ -103,11 +151,20 @@ export default function ReferPage() {
       setProgressNotes([]);
     }
   }, [formState.success]);
-  
+
   const formActionWithFiles: (payload: FormData) => void = (payload) => {
-    // Manually append files to the FormData object right before submission
-    referralDocs.forEach(file => payload.append('referralDocuments', file));
-    progressNotes.forEach(file => payload.append('progressNotes', file));
+    const referralDocUrls = referralDocs.filter(f => f.status === 'completed' && f.url).map(f => f.url!);
+    const progressNoteUrls = progressNotes.filter(f => f.status === 'completed' && f.url).map(f => f.url!);
+
+    payload.append('referralDocumentUrls', JSON.stringify(referralDocUrls));
+    payload.append('progressNoteUrls', JSON.stringify(progressNoteUrls));
+
+    // Also pass file names and sizes for record keeping
+    const referralDocMetadata = referralDocs.filter(f => f.status === 'completed').map(f => ({ name: f.file.name, size: f.file.size }));
+    const progressNoteMetadata = progressNotes.filter(f => f.status === 'completed').map(f => ({ name: f.file.name, size: f.file.size }));
+    payload.append('referralDocumentMetadata', JSON.stringify(referralDocMetadata));
+    payload.append('progressNoteMetadata', JSON.stringify(progressNoteMetadata));
+
     formAction(payload);
   };
 
@@ -265,7 +322,7 @@ export default function ReferPage() {
                         <Button type="button" variant="outline" className="w-full" onClick={() => referralDocsRef.current?.click()}>
                             <UploadCloud className="mr-2" /> Choose Files
                         </Button>
-                        <FileList files={referralDocs} onRemove={removeReferralDoc} />
+                        <FileList files={referralDocs} onRemove={(index) => removeFile(index, setReferralDocs)} />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="progressNotes">Progress Notes</Label>
@@ -273,12 +330,12 @@ export default function ReferPage() {
                         <Button type="button" variant="outline" className="w-full" onClick={() => progressNotesRef.current?.click()}>
                             <UploadCloud className="mr-2" /> Choose Files
                         </Button>
-                        <FileList files={progressNotes} onRemove={removeProgressNote} />
+                        <FileList files={progressNotes} onRemove={(index) => removeFile(index, setProgressNotes)} />
                     </div>
 
                     <p className="text-sm text-muted-foreground">Uploading documents allows us to confirm insurance and respond faster. You can additionally fax it to 713-378-5289. Max total size: {MAX_SIZE_MB}MB.</p>
 
-                    {(referralDocs.length > 0 || progressNotes.length > 0) && (
+                    {allFiles.length > 0 && (
                         <div className="space-y-2 pt-2">
                             <div className="flex justify-between items-center text-sm">
                                 <p className="font-medium">Total selected size</p>
@@ -297,10 +354,10 @@ export default function ReferPage() {
             </Card>
 
             {formState.message && !formState.success && (<Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{formState.message}</AlertDescription></Alert>)}
-            
-            <Button type="submit" disabled={pending || formState.isSubmitting || isOverLimit} size="lg" className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/90">
+
+            <Button type="submit" disabled={pending || formState.isSubmitting || isOverLimit || isUploading} size="lg" className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/90">
                 {pending || formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                {formState.isSubmitting ? 'Submitting & Processing Files...' : 'SUBMIT REFERRAL'}
+                {isUploading ? 'Uploading files...' : (formState.isSubmitting ? 'Submitting...' : 'SUBMIT REFERRAL')}
             </Button>
           </form>
         </div>
